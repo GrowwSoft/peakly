@@ -1,0 +1,8 @@
+/* Same tokens and Tailwind setup as the web app; scan both the shared components and the desktop shell. */
+@import "../../src/app/globals.css";
+@source "../../src";
+@source "./";
+
+html, body, #root { height: 100%; }
+body { -webkit-font-smoothing: antialiased; user-select: none; }
+input, textarea, code, p, dd, td, h1, h2, h3 { user-select: text; }

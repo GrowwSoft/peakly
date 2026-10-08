@@ -39,3 +39,19 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# growth-insights: encrypted connections, dev key and report cache
+/.data/
+*.p8
+!.env.example
+
+# local preview config (machine-specific paths)
+/.claude/
+
+# desktop (Tauri) build output
+/dist-desktop/
+
+# end-to-end runs
+/.next-e2e/
+/test-results/
+/playwright-report/

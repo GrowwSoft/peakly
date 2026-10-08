@@ -1,0 +1,21 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Main window: Apple report access, and opening the Peakly website's donate page and the VoteWant feedback board in the browser.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://api.appstoreconnect.apple.com/*" },
+        { "url": "https://itunes.apple.com/*" },
+        { "url": "https://*.amazonaws.com/*" }
+      ]
+    },
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [{ "url": "https://getpeakly.app/*" }, { "url": "https://votewant.com/boards/*" }]
+    }
+  ]
+}

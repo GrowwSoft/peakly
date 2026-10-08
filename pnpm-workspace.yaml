@@ -1,0 +1,7 @@
+allowBuilds:
+  unrs-resolver: true
+minimumReleaseAgeExclude:
+  - '@playwright/test@1.64.0'
+  - '@tauri-apps/plugin-http@2.8.1'
+  - playwright-core@1.64.0
+  - playwright@1.64.0

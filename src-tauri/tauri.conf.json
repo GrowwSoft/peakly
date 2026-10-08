@@ -1,0 +1,40 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Peakly",
+  "version": "0.1.0",
+  "identifier": "com.peakly.desktop",
+  "build": {
+    "frontendDist": "../dist-desktop",
+    "devUrl": "http://127.0.0.1:5174",
+    "beforeDevCommand": "npm run desktop:web",
+    "beforeBuildCommand": "npm run desktop:web:build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Peakly",
+        "width": 1440,
+        "height": 920,
+        "minWidth": 1080,
+        "minHeight": 700,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' data: https://*.mzstatic.com; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost; frame-src https://votewant.com"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "category": "DeveloperTool",
+    "shortDescription": "App Store growth insights from your own read-only keys",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.png"],
+    "resources": {
+      "../scripts/enable-analytics-reports.mjs": "scripts/enable-analytics-reports.mjs"
+    },
+    "macOS": {
+      "minimumSystemVersion": "13.0"
+    }
+  }
+}

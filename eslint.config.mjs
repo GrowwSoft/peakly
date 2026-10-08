@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Desktop (Tauri) build output
+    "dist-desktop/**",
+    "src-tauri/target/**",
+    "src-tauri/gen/**",
+    // End-to-end run output
+    ".next-e2e/**",
+    "test-results/**",
+    "playwright-report/**",
   ]),
 ]);
 
