@@ -208,6 +208,9 @@ export async function expectNativeFeedbackWorks(page: Page, stub: VoteWantStub, 
   // without guessing that the small comment count is a control.
   const requestCard = page.getByRole("button", { name: "Open discussion for CSV export" });
   await expect(requestCard).toContainText("Read or add a comment");
+  // The generated utility CSS is part of the interactive affordance; a raw, unstyled page
+  // makes the embedded feedback card difficult to discover even if its DOM handler works.
+  await expect(requestCard).toHaveCSS("border-radius", "8px");
   await requestCard.click();
   const discussion = page.getByRole("region", { name: "Comments on CSV export" });
   await discussion.getByLabel("Add a comment").fill("Please include the selected date range in the export.");
