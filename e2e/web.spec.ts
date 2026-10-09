@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { ISSUER_ID, VENDOR_NUMBER, isoDay } from "./fixtures/apple-data";
+import { CALENDLY_URL } from "../src/core/links";
 import { KEY_FILE, STUDIO_RELEASED_AT, WRONG_ISSUER, appleRequests, expectAppLines, expectNativeFeedbackWorks, expectDonateTopRight, expectFeedbackBoard, expectNavOrder, expectRevenue, stubVoteWant, kpi, releaseDay, versionRow } from "./helpers";
 
 // One server, one data folder: the steps build on each other (connect → use → remove).
@@ -33,6 +34,10 @@ test.describe("web app", () => {
     await page.locator("aside").getByRole("link", { name: "Feedback" }).click();
     await expectFeedbackBoard(page);
     await expect(page.getByRole("link", { name: "Open the board in your browser" })).toHaveAttribute("target", "_blank");
+    const meeting = page.getByRole("link", { name: "Book a one-to-one" });
+    await expect(meeting).toHaveAttribute("href", CALENDLY_URL);
+    await expect(meeting).toHaveAttribute("target", "_blank");
+    await expect(meeting).toHaveAttribute("rel", /noopener/);
     await expectNativeFeedbackWorks(page, voteWant, async () => {
       await page.locator("aside").getByRole("link", { name: "MCP" }).click();
       await page.locator("aside").getByRole("link", { name: "Feedback" }).click();

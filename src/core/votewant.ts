@@ -10,12 +10,21 @@
 
 export interface FeedbackRequest {
   readonly body: string;
+  readonly commentCount?: number;
   readonly downVoteCount: number;
   readonly id: string;
   readonly participationVoteCount: number;
   readonly status: string;
   readonly title: string;
   readonly type: string;
+}
+
+export interface FeedbackComment {
+  readonly authorLabel: string;
+  readonly body: string;
+  readonly createdAt: string;
+  readonly id: string;
+  readonly provenanceLabel: string;
 }
 
 export interface FeedbackBoard {
@@ -86,6 +95,18 @@ export class VoteWantFeedback {
   async submit(submission: FeedbackSubmission): Promise<{ readonly id: string; readonly title: string }> {
     return this.withVoter(`/api/v1/boards/${encodeURIComponent(this.board)}/feedback`, {
       body: JSON.stringify(submission), method: "POST",
+    });
+  }
+
+  async getComments(requestId: string): Promise<readonly FeedbackComment[]> {
+    const result = await this.request<{ comments: FeedbackComment[] }>(
+      `/api/v1/requests/${encodeURIComponent(requestId)}/comments`, { method: "GET" });
+    return result.comments;
+  }
+
+  async comment(requestId: string, body: string): Promise<void> {
+    await this.withVoter(`/api/v1/requests/${encodeURIComponent(requestId)}/comments`, {
+      body: JSON.stringify({ body, confirmPublic: true }), method: "POST",
     });
   }
 

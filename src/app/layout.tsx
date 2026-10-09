@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Inter } from "next/font/google";
 import { Suspense } from "react";
 import { connection } from "next/server";
 import { Logo } from "@/components/logo";
@@ -8,8 +7,6 @@ import { Sidebar } from "@/components/sidebar";
 import { DonateLink, PageTopBar, SidebarFrame } from "@/components/sidebar-view";
 import { getApps } from "@/lib/server/apps";
 import "./globals.css";
-
-const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Growth Insights",
@@ -26,7 +23,7 @@ async function SidebarWithApps() {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+    <html lang="en" className="h-full antialiased">
       <body className="min-h-full">
         <div className="flex min-h-screen">
           <Suspense fallback={<SidebarFrame />}>

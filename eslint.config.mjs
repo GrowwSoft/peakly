@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The marketing site is a separate Next.js project with its own config and checks.
+    "peakly-website/**",
     // Desktop (Tauri) build output
     "dist-desktop/**",
     "src-tauri/target/**",
