@@ -81,6 +81,8 @@ test.describe("Mac app (Tauri frontend in WebKit)", () => {
     const picker = page.getByRole("combobox", { name: "Choose app" });
     await expect(picker).toHaveValue("all");
     await expect(page.locator("aside")).toContainText("3 apps combined");
+    // All apps shows the Peakly logo, so the brand is what people see by default.
+    await expect(page.locator('aside label img[src="/brand/logo.svg"]')).toBeVisible();
     await expect(kpi(page, "Impressions")).toContainText("2.2K");
     await expect(kpi(page, "Conversion rate")).toContainText("20%");
     await expectAppLines(page, ["Echo Pad", "Studio Level"]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Bot, ChevronsUpDown, Heart, LayoutGrid, Megaphone, Settings, Sparkles, Table2, type LucideIcon } from "lucide-react";
+import { BarChart3, Bot, ChevronsUpDown, Heart, Megaphone, Settings, Sparkles, Table2, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Logo } from "./logo";
 import { ALL_APPS } from "@/core/all-apps";
@@ -40,7 +40,9 @@ export function AppSwitcherView({ apps, selectedId, mode, onSelect }: {
       {selected.iconUrl
         // eslint-disable-next-line @next/next/no-img-element
         ? <img src={selected.iconUrl} alt="" className="size-12 rounded-2xl shadow-sm" />
-        : <div className="grid size-12 place-items-center rounded-2xl bg-accent text-white">{one ? <Sparkles className="size-6" aria-hidden /> : <LayoutGrid className="size-6" aria-hidden />}</div>}
+        : one
+          ? <div className="grid size-12 place-items-center rounded-2xl bg-accent text-white"><Sparkles className="size-6" aria-hidden /></div>
+          : <Logo size={48} />}
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold text-ink">{selected.name}</p>
         <p className="text-sm text-ink-3">{one ? "iOS App" : `${apps.length} app${apps.length === 1 ? "" : "s"} combined`}</p>
