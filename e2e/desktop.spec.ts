@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ISSUER_ID, VENDOR_NUMBER } from "./fixtures/apple-data";
+import { CALENDLY_URL } from "../src/core/links";
 import { KEY_FILE, MOCK_APPLE, STUDIO_RELEASED_AT, WRONG_ISSUER, appleRequests, expectAppLines, expectNativeFeedbackWorks, expectDonateTopRight, expectFeedbackBoard, expectRevenue, FEEDBACK_BOARD_URL, stubVoteWant, type VoteWantStub, releaseDay, shipStudioVersion, versionRow, expectNavOrder, kpi } from "./helpers";
 import { installTauriShim } from "./tauri-shim";
 
@@ -46,6 +47,9 @@ test.describe("Mac app (Tauri frontend in WebKit)", () => {
     await page.getByRole("link", { name: "Open the board in your browser" }).click();
     await expect.poll(async () => (await shimCalls()).filter((c) => c.cmd === "plugin:opener|open_url").map((c) => (c as { url?: string }).url))
       .toContain(FEEDBACK_BOARD_URL);
+    await page.getByRole("link", { name: "Book a one-to-one" }).click();
+    await expect.poll(async () => (await shimCalls()).filter((c) => c.cmd === "plugin:opener|open_url").map((c) => (c as { url?: string }).url))
+      .toContain(CALENDLY_URL);
     await expectDonateTopRight(page);
     await nav("MCP").click();
     await expect(page.getByText("Coming soon")).toBeVisible();

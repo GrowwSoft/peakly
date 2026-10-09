@@ -5,6 +5,9 @@
  */
 export const DONATE_URL = "https://getpeakly.app/donate";
 
+/** Schedule a one-to-one with Peakly's creator. */
+export const CALENDLY_URL = "https://calendly.com/alexander-landaverde01/one-to-one";
+
 /**
  * Feedback lives on a VoteWant board (votewant.com): people request features, report bugs
  * and vote. It's the one cloud feature; nothing about the user's apps or keys is sent there.

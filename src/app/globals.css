@@ -60,7 +60,7 @@
   --color-nav-active: var(--nav-active);
   --color-good: var(--good);
   --color-bad: var(--bad);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
 body {

@@ -40,6 +40,7 @@
   ],
   "exclude": [
     "node_modules",
+    "peakly-website",
     "src-tauri",
     "dist-desktop"
   ]

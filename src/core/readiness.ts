@@ -1,4 +1,4 @@
-import { AscError, createAscClient } from "./asc/client";
+import { AscError, createAscClient, type AscResource } from "./asc/client";
 import { listApps } from "./dataset";
 import { DOWNLOADS_REPORT, ENGAGEMENT_REPORT } from "./asc/normalize";
 import type { AscAuth, Platform } from "./platform";
@@ -32,12 +32,12 @@ export async function getReadiness(platform: Platform, auth: AscAuth): Promise<R
       while (next < out.length && !denied) {
         const app = out[next++]!;
         try {
-          const requests = await client.all<{ attributes: { accessType: string; stoppedDueToInactivity?: boolean } }>(
+          const requests = await client.all<AscResource<{ accessType: string; stoppedDueToInactivity?: boolean }>>(
             `/v1/apps/${app.id}/analyticsReportRequests`);
           const ongoing = requests.filter((r) => r.attributes.accessType === "ONGOING");
           const active = ongoing.find((r) => !r.attributes.stoppedDueToInactivity);
           if (active) {
-            const reports = await client.all<{ id: string; attributes: { name: string } }>(`/v1/analyticsReportRequests/${active.id}/reports`);
+            const reports = await client.all<AscResource<{ name: string }>>(`/v1/analyticsReportRequests/${active.id}/reports`);
             const coreReports = [ENGAGEMENT_REPORT, DOWNLOADS_REPORT].map((name) => reports.find((r) => r.attributes.name === name));
             if (coreReports.some((report) => !report)) {
               app.analytics = "waiting";

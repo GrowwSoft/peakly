@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, type Locator, type Page, type Route } from "@playwright/test";
 import { isoDay } from "./fixtures/apple-data";
+import type { FeedbackComment } from "../src/core/votewant";
 
 export const MOCK_APPLE = "http://127.0.0.1:4599";
 export const TEST_KEY = readFileSync(join(__dirname, "fixtures", "e2e-key.txt"), "utf8");
@@ -89,8 +90,10 @@ export const FEEDBACK_BOARD_URL = "https://votewant.com/boards/peakly-e2e-board?
 /** What Peakly sent to the stand-in VoteWant, for assertions. */
 export interface VoteWantStub {
   readonly authorizations: string[];
+  readonly commentSubmissions: { requestId: string; body: string; confirmPublic: boolean }[];
+  readonly comments: Record<string, FeedbackComment[]>;
   registrations: number;
-  readonly requests: { id: string; title: string; body: string; type: string; status: string; participationVoteCount: number; downVoteCount: number }[];
+  readonly requests: { id: string; title: string; body: string; type: string; status: string; participationVoteCount: number; downVoteCount: number; commentCount: number }[];
   readonly votes: Record<string, "up" | "down">;
 }
 
@@ -102,10 +105,12 @@ export interface VoteWantStub {
 export async function stubVoteWant(page: Page): Promise<VoteWantStub> {
   const state: VoteWantStub = {
     authorizations: [],
+    commentSubmissions: [],
+    comments: {},
     registrations: 0,
     requests: [
-      { body: "Export the table viewer as CSV.", downVoteCount: 0, id: "request_csv", participationVoteCount: 3, status: "open", title: "CSV export", type: "feature" },
-      { body: "Show Android installs too.", downVoteCount: 1, id: "request_android", participationVoteCount: 1, status: "under review", title: "Google Play support", type: "feature" },
+      { body: "Export the table viewer as CSV.", commentCount: 0, downVoteCount: 0, id: "request_csv", participationVoteCount: 3, status: "open", title: "CSV export", type: "feature" },
+      { body: "Show Android installs too.", commentCount: 0, downVoteCount: 1, id: "request_android", participationVoteCount: 1, status: "under review", title: "Google Play support", type: "feature" },
     ],
     votes: {},
   };
@@ -124,8 +129,28 @@ export async function stubVoteWant(page: Page): Promise<VoteWantStub> {
       state.registrations += 1;
       return reply(route, { token: `vw_voter.install-${state.registrations}.secret`, voterId: `install-${state.registrations}` }, 201);
     }
+    const comments = /^\/api\/v1\/requests\/([^/]+)\/comments$/u.exec(path);
+    if (comments && request.method() === "GET") {
+      return reply(route, { comments: state.comments[comments[1]] ?? [] });
+    }
     if (!authorization?.startsWith("Bearer vw_voter.")) return reply(route, { error: "A valid voter credential is required." }, 401);
     if (path === "/api/v1/boards/peakly-e2e-board/votes/mine") return reply(route, { votes: state.votes });
+    if (comments && request.method() === "POST") {
+      const submitted = request.postDataJSON() as { body: string; confirmPublic: boolean };
+      state.commentSubmissions.push({ ...submitted, requestId: comments[1] });
+      const target = state.requests.find((item) => item.id === comments[1]);
+      if (!target) return reply(route, { error: "Request not found." }, 404);
+      const comment: FeedbackComment = {
+        authorLabel: "Anonymous · A1B2C3D4",
+        body: submitted.body,
+        createdAt: new Date().toISOString(),
+        id: `comment_${(state.comments[comments[1]] ?? []).length + 1}`,
+        provenanceLabel: "Anonymous visitor",
+      };
+      state.comments[comments[1]] = [...(state.comments[comments[1]] ?? []), comment];
+      target.commentCount = state.comments[comments[1]].length;
+      return reply(route, { id: comment.id }, 201);
+    }
     const vote = /^\/api\/v1\/requests\/([^/]+)\/votes$/u.exec(path);
     if (vote) {
       const direction = (request.postDataJSON() as { direction: "up" | "down" }).direction;
@@ -139,7 +164,7 @@ export async function stubVoteWant(page: Page): Promise<VoteWantStub> {
     }
     if (path === "/api/v1/boards/peakly-e2e-board/feedback") {
       const submitted = request.postDataJSON() as { title: string; body: string; type: string };
-      state.requests.push({ body: submitted.body, downVoteCount: 0, id: `request_${state.requests.length + 1}`, participationVoteCount: 0, status: "open", title: submitted.title, type: submitted.type === "issue" ? "bug" : "feature" });
+      state.requests.push({ body: submitted.body, commentCount: 0, downVoteCount: 0, id: `request_${state.requests.length + 1}`, participationVoteCount: 0, status: "open", title: submitted.title, type: submitted.type === "issue" ? "bug" : "feature" });
       return reply(route, { href: "/boards/peakly-e2e-board/requests/new", id: `request_${state.requests.length}`, title: submitted.title }, 201);
     }
     return reply(route, { error: "Not found." }, 404);
@@ -155,7 +180,7 @@ export async function expectFeedbackBoard(page: Page) {
   await expect(page.locator("iframe")).toHaveCount(0);
   const open = page.getByRole("link", { name: "Open the board in your browser" });
   await expect(open).toHaveAttribute("href", FEEDBACK_BOARD_URL);
-  await expect(page.getByText("No sign-in: this")).toBeVisible();
+  await expect(page.getByText(/Comments are public and show this install's stable anonymous ID/u)).toBeVisible();
 }
 
 /** Votes and feedback go to VoteWant with this install's anonymous token, registered once. */
@@ -178,6 +203,28 @@ export async function expectNativeFeedbackWorks(page: Page, stub: VoteWantStub, 
   await form.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Thanks, your feedback is on the board.");
   await expect(page.getByRole("list", { name: "Requests" })).toContainText("Crash on export");
+
+  // The request card itself opens its discussion, so people can reach comments
+  // without guessing that the small comment count is a control.
+  const requestCard = page.getByRole("button", { name: "Open discussion for CSV export" });
+  await expect(requestCard).toContainText("Read or add a comment");
+  await requestCard.click();
+  const discussion = page.getByRole("region", { name: "Comments on CSV export" });
+  await discussion.getByLabel("Add a comment").fill("Please include the selected date range in the export.");
+  const publicDisclosure = discussion.getByLabel("I understand this comment will be public and won't include personal or account data.");
+  const postComment = discussion.getByRole("button", { name: "Post comment" });
+  await expect(postComment).toBeDisabled();
+  await publicDisclosure.check();
+  await postComment.click();
+  await expect(discussion).toContainText("Please include the selected date range in the export.");
+  await expect(discussion).toContainText("Anonymous · A1B2C3D4");
+  await expect(discussion).toContainText("Anonymous visitor");
+  await expect(page.getByRole("button", { name: "Hide discussion for CSV export" })).toContainText("Hide discussion");
+  expect(stub.commentSubmissions).toEqual([{
+    body: "Please include the selected date range in the export.",
+    confirmPublic: true,
+    requestId: "request_csv",
+  }]);
 
   // Coming back reuses the same install token: one registration, every call authorized.
   await openFeedback();
