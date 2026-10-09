@@ -62,6 +62,7 @@ export function installTauriShim(config: ShimConfig) {
   const requests = new Map<number, Pending>();
   const bodies = new Map<number, { bytes: Uint8Array; sent: boolean }>();
   let nextRid = 1;
+  let nextVendorWriteError: string | null = null;
   const calls: { cmd: string; method?: string; url?: string }[] = [];
 
   const b64url = (bytes: Uint8Array) => {
@@ -113,6 +114,11 @@ export function installTauriShim(config: ShimConfig) {
         return null;
       }
       case "credentials_set_vendor":
+        if (nextVendorWriteError) {
+          const error = nextVendorWriteError;
+          nextVendorWriteError = null;
+          throw error;
+        }
         store({ ...unlocked(), vendorNumber: String(args.vendorNumber) });
         return null;
       case "credentials_delete":
@@ -179,5 +185,12 @@ export function installTauriShim(config: ShimConfig) {
     transformCallback: () => 0,
     metadata: { currentWindow: { label: "main" }, currentWebview: { windowLabel: "main", label: "main" } },
   };
-  w.__peaklyE2E = { calls, keychain: keychainRead, keychainReads: () => keychainReads, cacheGet: cache.get, cacheSet: cache.set };
+  w.__peaklyE2E = {
+    calls,
+    keychain: keychainRead,
+    keychainReads: () => keychainReads,
+    cacheGet: cache.get,
+    cacheSet: cache.set,
+    failNextVendorWrite: (message: string) => { nextVendorWriteError = message; },
+  };
 }

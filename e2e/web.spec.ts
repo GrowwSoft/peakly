@@ -1,3 +1,6 @@
+import { chmod, stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { ISSUER_ID, VENDOR_NUMBER, isoDay } from "./fixtures/apple-data";
 import { KEY_FILE, STUDIO_RELEASED_AT, WRONG_ISSUER, appleRequests, expectAppLines, expectDonateTopRight, expectFeedbackBoard, expectNavOrder, expectRevenue, stubVoteWant, kpi, releaseDay, versionRow } from "./helpers";
@@ -222,6 +225,18 @@ test.describe("web app", () => {
     await expect(page.getByText("Invalid vendor number specified")).toBeVisible();
 
     await vendor.fill(VENDOR_NUMBER);
+    const dataDir = join(tmpdir(), "peakly-e2e-web-data");
+    const originalMode = (await stat(dataDir)).mode & 0o777;
+    await chmod(dataDir, originalMode & ~0o222);
+    try {
+      await page.getByRole("button", { name: "Save" }).click();
+      await expect(page.getByRole("status")).toHaveText("Could not save the vendor number. Please try again.");
+      await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+      await expect(vendor).toHaveValue(VENDOR_NUMBER);
+    } finally {
+      await chmod(dataDir, originalMode);
+    }
+
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("•••456")).toBeVisible();
 

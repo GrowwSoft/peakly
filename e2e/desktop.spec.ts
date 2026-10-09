@@ -117,15 +117,32 @@ test.describe("Mac app (Tauri frontend in WebKit)", () => {
     await expect(panel.locator('th[data-provider="asc"]')).toHaveCount(9);
   });
 
-  test("adds a vendor number and shows sales", async () => {
+  test("keeps Settings usable after a vendor save error and then adds the number", async () => {
     await nav("Settings").click();
     const vendor = page.getByRole("textbox", { name: "Add a vendor number to include sales" });
     await vendor.fill("12345678");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("Invalid vendor number specified")).toBeVisible();
+
+    const pageErrors: string[] = [];
+    const recordPageError = (error: Error) => pageErrors.push(error.message);
+    page.on("pageerror", recordPageError);
     await vendor.fill(VENDOR_NUMBER);
+    await page.evaluate(() => {
+      (window as unknown as { __peaklyE2E: { failNextVendorWrite: (message: string) => void } })
+        .__peaklyE2E.failNextVendorWrite("Simulated Keychain write failure.");
+    });
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByRole("status")).toContainText("Simulated Keychain write failure.");
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Test connection" })).toBeVisible();
+    await expect(vendor).toBeVisible();
+    await expect(vendor).toHaveValue(VENDOR_NUMBER);
+    expect(pageErrors).toEqual([]);
+
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("•••456")).toBeVisible();
+    page.off("pageerror", recordPageError);
 
     await nav("Growth insights").click();
     // Studio Level, last 7 days: a purchase a day, and the cancellation on day −7.

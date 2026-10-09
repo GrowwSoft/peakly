@@ -171,11 +171,13 @@ export function ConnectedAsc({ keyId, vendorTail, savedAt, check, remove, saveVe
 
 function VendorNumberForm({ save }: { save: SaveAction }) {
   const [state, action, pending] = useActionState<SaveState, FormData>(save, { ok: false, message: "" });
+  const [vendorNumber, setVendorNumber] = useState("");
   return (
     <form action={action} className="mt-5 flex flex-wrap items-end gap-3 rounded-xl bg-card-muted p-4">
       <label className="block text-sm font-medium text-ink">
         Add a vendor number to include sales
-        <input name="vendorNumber" inputMode="numeric" placeholder="88123456" autoComplete="off" className={`${input} w-56`} />
+        <input name="vendorNumber" value={vendorNumber} onChange={(event) => setVendorNumber(event.target.value)}
+          inputMode="numeric" placeholder="88123456" autoComplete="off" className={`${input} w-56`} />
       </label>
       <button type="submit" disabled={pending} className="rounded-xl bg-accent px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60">
         {pending ? "Checking…" : "Save"}

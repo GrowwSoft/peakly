@@ -279,11 +279,15 @@ function DesktopSettings({ status, onChanged, onUnlock }: { status: DesktopStatu
   const saveVendor = async (_prev: SaveState, form: FormData): Promise<SaveState> => {
     const vendorNumber = parseVendorNumber(form);
     if (!vendorNumber) return { ok: false, message: "Vendor number is 6–12 digits, from Payments and Financial Reports." };
-    const problem = await verifyVendor(desktopPlatform, keychainAuth(vendorNumber));
-    if (problem) return { ok: false, message: problem };
-    await setVendorNumber(vendorNumber);
-    await onChanged();
-    return { ok: true, message: "Vendor number saved. Sales reports are now included." };
+    try {
+      const problem = await verifyVendor(desktopPlatform, keychainAuth(vendorNumber));
+      if (problem) return { ok: false, message: problem };
+      await setVendorNumber(vendorNumber);
+      await onChanged();
+      return { ok: true, message: "Vendor number saved. Sales reports are now included." };
+    } catch (e) {
+      return { ok: false, message: messageOf(e) };
+    }
   };
 
   return (

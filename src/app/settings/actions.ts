@@ -22,15 +22,19 @@ export async function saveAppStoreConnect(_prev: SaveState, form: FormData): Pro
 
 export async function saveVendorNumber(_prev: SaveState, form: FormData): Promise<SaveState> {
   try { await assertCanManageConnections(); } catch (e) { return { ok: false, message: (e as Error).message }; }
-  const credentials = loadAscCredentials();
-  if (!credentials) return { ok: false, message: "No App Store Connect key saved." };
-  const vendorNumber = parseVendorNumber(form);
-  if (!vendorNumber) return { ok: false, message: "Vendor number is 6–12 digits, from Payments and Financial Reports." };
-  const problem = await verifyVendor(nodePlatform, authFromCredentials({ ...credentials, vendorNumber }));
-  if (problem) return { ok: false, message: problem };
-  setVendorNumber(vendorNumber);
-  revalidatePath("/", "layout");
-  return { ok: true, message: "Vendor number saved. Sales reports are now included." };
+  try {
+    const credentials = loadAscCredentials();
+    if (!credentials) return { ok: false, message: "No App Store Connect key saved." };
+    const vendorNumber = parseVendorNumber(form);
+    if (!vendorNumber) return { ok: false, message: "Vendor number is 6–12 digits, from Payments and Financial Reports." };
+    const problem = await verifyVendor(nodePlatform, authFromCredentials({ ...credentials, vendorNumber }));
+    if (problem) return { ok: false, message: problem };
+    setVendorNumber(vendorNumber);
+    revalidatePath("/", "layout");
+    return { ok: true, message: "Vendor number saved. Sales reports are now included." };
+  } catch {
+    return { ok: false, message: "Could not save the vendor number. Please try again." };
+  }
 }
 
 export async function removeAppStoreConnect(): Promise<void> {
