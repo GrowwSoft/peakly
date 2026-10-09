@@ -3,11 +3,13 @@ import { Suspense } from "react";
 import { AscConnectionForm, ConnectedAsc } from "@/components/settings/connection-forms";
 import { READINESS_FALLBACK, SettingsScreen } from "@/components/settings/settings-screen";
 import { connectionStatus } from "@/lib/server/connections";
+import { assertCanAccessPrivateData } from "@/lib/server/access";
 import { checkAppStoreConnect, removeAppStoreConnect, saveAppStoreConnect, saveVendorNumber } from "./actions";
 import { AppReadinessList } from "./app-readiness";
 
 export default async function SettingsPage() {
   await connection(); // saved-key status is read from disk per request
+  await assertCanAccessPrivateData();
   const status = connectionStatus().appStoreConnect;
   return (
     <SettingsScreen

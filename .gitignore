@@ -48,6 +48,9 @@ next-env.d.ts
 # local preview config (machine-specific paths)
 /.claude/
 
+# Separate marketing-site checkout; publish it through its own Git repository.
+/peakly-website/
+
 # desktop (Tauri) build output
 /dist-desktop/
 

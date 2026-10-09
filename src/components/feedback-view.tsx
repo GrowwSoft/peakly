@@ -212,7 +212,7 @@ export function FeedbackView({ board, boardUrl, openExternal }: {
         </>
       )}
       <p className="mt-3 text-xs text-ink-3">
-        Comments are public and show this install&apos;s stable anonymous ID. No sign-in: your apps, keys and reports stay on this {openExternal ? "Mac" : "browser"}.
+        Comments are public and show this install&apos;s stable anonymous ID. Only feedback and votes are sent to VoteWant; App Store Connect credentials and reports stay on {openExternal ? "this Mac" : "the server running Peakly"}.
       </p>
     </div>
   );

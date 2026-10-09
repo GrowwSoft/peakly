@@ -2,7 +2,9 @@
 
 # Peakly
 
-Open-source growth insights for App Store apps. Connect a **read-only** App Store Connect key and get a clear picture of discovery, conversion, sources and sales, plus a recommended next step that's honest about sample size.
+Growth insights for App Store apps. Connect App Store Connect to see discovery, conversion, sources and sales, plus a recommended next step that's honest about sample size.
+
+[Website](https://getpeakly.app) · [Donate to Peakly](https://getpeakly.app/donate)
 
 > Working title. MVP scope: App Store Connect only (Analytics Reports + Sales reports). Superwall and other sources come later through the same provider pattern.
 
@@ -27,10 +29,12 @@ Open-source growth insights for App Store apps. Connect a **read-only** App Stor
 - The App Store Connect token is created in memory per request (10-minute ES256 JWT) and sent only to `api.appstoreconnect.apple.com`. Report downloads use Apple's pre-signed URLs without credentials.
 - A key is verified against Apple before it's stored.
 - **Feedback** talks to [VoteWant](https://votewant.com)'s public API: it reads Peakly's board and, when you vote or send feedback, registers this install once for an anonymous voter ID (kept in local storage). There's no sign-in, and nothing about your apps, keys or reports is sent. The Mac app allows only `https://votewant.com` beyond Apple, and loads no frames.
-- Managing keys requires `GI_BASIC_AUTH` on any non-local host. Every Server Function re-checks access; `proxy.ts` is a convenience gate, not the security boundary.
+- `GI_BASIC_AUTH` protects the web app's reports and settings. It is required for every production deployment and any instance reachable beyond this computer. The development and production start commands bind to `127.0.0.1` by default. Every private-data Server Function checks access too; `proxy.ts` adds the site-wide gate.
 - The saved connection stays read-only. The Mac app can create a single ongoing Analytics Reports request only after a user previews the specific app and explicitly confirms; any separate Admin key is used in memory for that action and never saved. The web app uses the standalone local script for this one-time setup.
 
 ## Setup
+
+### Local development
 
 ```bash
 npm install
@@ -39,6 +43,17 @@ npm run dev
 ```
 
 Open http://localhost:3000. You'll see sample data until you connect a key in **Settings**.
+
+### Production self-hosting
+
+`npm run dev` starts the development server. To build and run the production web app:
+
+```bash
+npm run build
+npm start
+```
+
+Before starting a production server, set a unique, strong `GI_BASIC_AUTH` value (format: `user:password`) and `GI_ENCRYPTION_KEY`; production requests fail closed if either protection is missing. Serve it over HTTPS so the Basic Auth password is protected in transit. Set `GI_DATA_DIR` to persistent storage if the default `.data` directory is not durable across restarts. To expose the app through a reverse proxy or LAN, keep Next.js bound to loopback and configure `GI_BASIC_AUTH` first.
 
 ### Connecting (2 inputs per Apple account)
 
@@ -68,8 +83,7 @@ The same screens ship as a Mac desktop app, built like AppLustre: a Vite fronten
 - The Mac app provides the one-time activation flow in Settings, so users don't need Node.js or Terminal.
 
 ```bash
-# Rust toolchain (stable); on this machine it lives on the SSD:
-export RUSTUP_HOME=/Volumes/PortableSSD/Tools/rust/rustup CARGO_HOME=/Volumes/PortableSSD/Tools/rust/cargo PATH=$CARGO_HOME/bin:$PATH
+# Install the stable Rust toolchain and Xcode Command Line Tools first.
 npm run desktop:dev        # run the app with hot reload
 npm run desktop:build      # build Peakly.app and a .dmg (unsigned until a signing identity is configured)
 npm run desktop:build:dev-signed   # debug build signed with your "Apple Development" certificate
@@ -101,7 +115,9 @@ npm run check          # types + lint + unit tests + e2e
 - The **desktop** suite runs the real Mac app frontend in WebKit. `e2e/tauri-shim.ts` stands in for the native side: Keychain, signing, cache and the HTTP plugin protocol.
 - Both cover sample mode and every section, connecting a key (including a rejected one), live numbers and insights, switching apps, day/week/month and ranges, the Table viewer, adding a vendor number, and removing the key. The Mac mock accepts only the explicitly shaped ongoing Analytics Reports request when signed by its test Admin key; other writes remain rejected.
 
-Playwright browsers on this machine live on the SSD: `PLAYWRIGHT_BROWSERS_PATH=/Volumes/PortableSSD/Tools/playwright-browsers`.
+Install the test browser with `npx playwright install webkit`. If your browsers live outside Playwright's default cache, set `PLAYWRIGHT_BROWSERS_PATH` to that location.
+
+See [SECURITY.md](SECURITY.md) for vulnerability reporting and deployment boundaries, and [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for publication checks and separate deployment gates.
 
 | Path | What |
 |---|---|
@@ -121,4 +137,4 @@ Playwright browsers on this machine live on the SSD: `PLAYWRIGHT_BROWSERS_PATH=/
 
 ## License
 
-To be decided before publishing (AGPL-3.0 is common for open-source SaaS; MIT is simplest).
+Peakly's source is licensed under the [Apache License, Version 2.0](LICENSE). See [NOTICE](NOTICE) for the project copyright notice. Third-party dependencies retain their own licenses.

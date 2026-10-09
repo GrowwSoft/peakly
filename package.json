@@ -1,11 +1,12 @@
 {
   "name": "growth-insights",
   "version": "0.1.0",
+  "license": "Apache-2.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --hostname 127.0.0.1",
     "build": "next build",
-    "start": "next start",
+    "start": "next start --hostname 127.0.0.1",
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",

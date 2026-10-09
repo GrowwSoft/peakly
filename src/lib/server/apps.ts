@@ -5,6 +5,7 @@ import { listApps } from "@/core/dataset";
 import { getReadiness as coreReadiness, type ReadinessResult } from "@/core/readiness";
 import { connectionStatus, loadAscCredentials } from "./connections";
 import { authFromCredentials, nodePlatform } from "./platform";
+import { assertCanAccessPrivateData } from "./access";
 
 export type AppsState =
   | { mode: "demo" }
@@ -20,6 +21,7 @@ const READINESS_TTL = 5 * 60_000;
 export async function getApps(): Promise<AppsState> {
   const status = connectionStatus().appStoreConnect;
   if (!status.configured) return { mode: "demo" };
+  await assertCanAccessPrivateData();
   const key = status.keyId + status.savedAt;
   if (appsMemo && appsMemo.key === key && Date.now() - appsMemo.at < APPS_TTL) return appsMemo.state;
   let state: AppsState;
@@ -37,8 +39,10 @@ export async function getApps(): Promise<AppsState> {
 /** Analytics readiness for every app, memoized briefly. Null when no key is saved. */
 export async function getReadiness(): Promise<ReadinessResult | null> {
   const status = connectionStatus().appStoreConnect;
+  if (!status.configured) return null;
+  await assertCanAccessPrivateData();
   const credentials = loadAscCredentials();
-  if (!status.configured || !credentials) return null;
+  if (!credentials) return null;
   const key = status.keyId + status.savedAt;
   if (readinessMemo && readinessMemo.key === key && Date.now() - readinessMemo.at < READINESS_TTL) return readinessMemo.result;
   const result = await coreReadiness(nodePlatform, authFromCredentials(credentials));

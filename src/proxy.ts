@@ -1,9 +1,17 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-/** Optional instance-wide password (GI_BASIC_AUTH="user:password"). Server Functions re-check it themselves. */
+/** Site-wide production password (GI_BASIC_AUTH="user:password"); private Server Functions re-check it too. */
 export function proxy(request: NextRequest) {
   const expected = process.env.GI_BASIC_AUTH;
-  if (!expected) return NextResponse.next();
+  if (!expected) {
+    if (process.env.NODE_ENV === "production") {
+      return new NextResponse("Peakly requires GI_BASIC_AUTH and GI_ENCRYPTION_KEY before production use.", { status: 503 });
+    }
+    return NextResponse.next();
+  }
+  if (process.env.NODE_ENV === "production" && !process.env.GI_ENCRYPTION_KEY) {
+    return new NextResponse("Peakly requires GI_BASIC_AUTH and GI_ENCRYPTION_KEY before production use.", { status: 503 });
+  }
   const header = request.headers.get("authorization");
   let decoded = "";
   try { decoded = header?.startsWith("Basic ") ? atob(header.slice(6)) : ""; } catch { decoded = ""; }

@@ -17,17 +17,24 @@ export function basicAuthOk(authorization: string | null, expected: string): boo
 
 /**
  * Server Functions are reachable by direct POST, so each one re-checks access here
- * instead of trusting proxy.ts. With GI_BASIC_AUTH set, credentials are required.
- * Without it, changes are only accepted from a local development host.
+ * instead of trusting proxy.ts. A production install must set GI_BASIC_AUTH before
+ * it can read private reports or manage a connection. Development remains usable
+ * from a loopback host, alongside the loopback-only dev-server default.
  */
-export async function assertCanManageConnections(): Promise<void> {
+export async function assertCanAccessPrivateData(): Promise<void> {
   const h = await headers();
   const expected = process.env.GI_BASIC_AUTH;
+  if (process.env.NODE_ENV === "production" && (!expected || !process.env.GI_ENCRYPTION_KEY)) {
+    throw new Error("Set GI_BASIC_AUTH and GI_ENCRYPTION_KEY before accessing a production Peakly instance.");
+  }
   if (expected) {
     if (!basicAuthOk(h.get("authorization"), expected)) throw new Error("Not authorized.");
     return;
   }
-  const host = (h.get("host") ?? "").split(":")[0]!.toLowerCase();
-  const local = host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host.endsWith(".localhost");
-  if (!local) throw new Error("Set GI_BASIC_AUTH before managing connections on a non-local host.");
+  let host = "";
+  try { host = new URL(`http://${h.get("host") ?? ""}`).hostname.toLowerCase(); } catch { /* invalid Host header */ }
+  const local = host === "localhost" || host === "127.0.0.1" || host === "[::1]";
+  if (!local) throw new Error("Set GI_BASIC_AUTH before accessing Peakly from a non-local host.");
 }
+
+export const assertCanManageConnections = assertCanAccessPrivateData;
