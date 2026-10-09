@@ -4,7 +4,7 @@
 
 Growth insights for App Store apps. Connect App Store Connect to see discovery, conversion, sources and sales, plus a recommended next step that's honest about sample size.
 
-[Website](https://getpeakly.app) · [Donate to Peakly](https://getpeakly.app/donate)
+[Website](https://getpeakly.com) · [Donate to Peakly](https://getpeakly.com/donate)
 
 > Working title. MVP scope: App Store Connect only (Analytics Reports + Sales reports). Superwall and other sources come later through the same provider pattern.
 
