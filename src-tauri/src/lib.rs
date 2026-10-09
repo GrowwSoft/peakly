@@ -8,6 +8,8 @@
 //! - Published Apple reports are cached under the app's cache folder.
 //! - Network calls from the web view go through tauri-plugin-http, limited to
 //!   Apple's hosts by `capabilities/default.json`.
+//! - The window only ever shows Peakly's own pages (`allowed_navigation`); Feedback
+//!   talks to VoteWant's API and opens its board in the browser.
 
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
@@ -15,7 +17,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Manager, State, Url};
 
 const KEYCHAIN_SERVICE: &str = "com.peakly.desktop";
 const KEYCHAIN_ACCOUNT: &str = "app-store-connect";
@@ -327,11 +329,30 @@ fn cache_set(app: AppHandle, key: String, value: String) -> Result<(), String> {
     fs::rename(&temp, &path).map_err(|e| e.to_string())
 }
 
+/// What the web view may load. Only Peakly's own pages: Feedback is drawn natively from
+/// VoteWant's API (connect-src), and frames are refused (frame-src 'none'), so a stray link
+/// or a compromised page can't put a look-alike page in a window people trust.
+fn allowed_navigation(url: &Url, dev_url: Option<&Url>) -> bool {
+    match url.scheme() {
+        "tauri" => url.host_str() == Some("localhost"),
+        "about" => matches!(url.path(), "blank" | "srcdoc"),
+        _ => dev_url.is_some_and(|dev| url.origin() == dev.origin()),
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry>::new("navigation-guard")
+                .on_navigation(|webview, url| {
+                    let dev_url = if tauri::is_dev() { webview.config().build.dev_url.clone() } else { None };
+                    allowed_navigation(url, dev_url.as_ref())
+                })
+                .build(),
+        )
         .manage(Vault::new(Box::new(Keychain)))
         .invoke_handler(tauri::generate_handler![
             credentials_status,
@@ -356,6 +377,29 @@ mod tests {
     // A throwaway P-256 key generated only for these tests.
     const TEST_KEY: &str = include_str!("test-signing-key.txt");
     const TEST_PUBLIC_KEY: &str = include_str!("test-signing-key.pub.txt");
+
+    #[test]
+    fn the_window_only_shows_peakly() {
+        let url = |s: &str| Url::parse(s).unwrap();
+        let dev = url("http://127.0.0.1:5174");
+        for ok in ["tauri://localhost/", "tauri://localhost/index.html", "about:blank"] {
+            assert!(allowed_navigation(&url(ok), None), "{ok} should load");
+        }
+        for blocked in [
+            "https://example.com/",
+            // Feedback no longer frames VoteWant; its pages open in the browser instead.
+            "https://votewant.com/boards/getpeakly-com-a180b4a4",
+            "https://votewant.com/boards/getpeakly-com-a180b4a4?accent=2a78d6",
+            "tauri://evil/",
+            "file:///etc/passwd",
+            "http://127.0.0.1:5174/",
+        ] {
+            assert!(!allowed_navigation(&url(blocked), None), "{blocked} should be cancelled");
+        }
+        // The dev server only counts while running `tauri dev`.
+        assert!(allowed_navigation(&url("http://127.0.0.1:5174/src/main.tsx"), Some(&dev)));
+        assert!(!allowed_navigation(&url("http://127.0.0.1:9999/"), Some(&dev)));
+    }
 
     #[test]
     fn signs_an_app_store_connect_token() {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DataExplorer } from "@/components/data-explorer";
 import { Dashboard, type Freshness } from "@/components/dashboard";
 import { FeedbackView } from "@/components/feedback-view";
-import { feedbackBoardUrl } from "@/core/links";
+import { feedbackBoardId, feedbackBoardUrl } from "@/core/links";
 import { McpView } from "@/components/mcp-view";
 import { Notice } from "@/components/notice";
 import { AnalyticsActivation } from "@/components/settings/analytics-activation";
@@ -189,7 +189,7 @@ export function App() {
               onRange={setRange} onGrain={setGrain} onSettings={() => setScreen("settings")} onRetry={() => setReloadKey((k) => k + 1)} />
           )
         )}
-        {screen === "feedback" && <FeedbackView boardUrl={feedbackBoardUrl(import.meta.env.VITE_VOTEWANT_BOARD)} openExternal={openInBrowser} />}
+        {screen === "feedback" && <FeedbackView board={feedbackBoardId(import.meta.env.VITE_VOTEWANT_BOARD)} boardUrl={feedbackBoardUrl(import.meta.env.VITE_VOTEWANT_BOARD)} openExternal={openInBrowser} />}
         {screen === "settings" && <DesktopSettings status={status} onUnlock={unlock}
           onChanged={async () => { await refreshConnection(); setReloadKey((k) => k + 1); }} />}
       </main>

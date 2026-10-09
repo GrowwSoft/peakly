@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' data: https://*.mzstatic.com; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost; frame-src https://votewant.com"
+      "csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' data: https://*.mzstatic.com; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://votewant.com; frame-src 'none'"
     }
   },
   "bundle": {

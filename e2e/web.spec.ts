@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "@playwright/test";
 import { ISSUER_ID, VENDOR_NUMBER, isoDay } from "./fixtures/apple-data";
-import { KEY_FILE, STUDIO_RELEASED_AT, WRONG_ISSUER, appleRequests, expectAppLines, expectDonateTopRight, expectFeedbackBoard, expectNavOrder, expectRevenue, stubVoteWant, kpi, releaseDay, versionRow } from "./helpers";
+import { KEY_FILE, STUDIO_RELEASED_AT, WRONG_ISSUER, appleRequests, expectAppLines, expectNativeFeedbackWorks, expectDonateTopRight, expectFeedbackBoard, expectNavOrder, expectRevenue, stubVoteWant, kpi, releaseDay, versionRow } from "./helpers";
 
 // One server, one data folder: the steps build on each other (connect → use → remove).
 test.describe.configure({ mode: "serial" });
@@ -28,11 +28,15 @@ test.describe("web app", () => {
     await expectDonateTopRight(page);
     await expect(page.getByText("Coming soon")).toBeVisible();
 
-    // Feedback is Peakly's VoteWant board, embedded (a stand-in board in tests).
-    await stubVoteWant(page);
+    // Feedback is Peakly's VoteWant board, drawn natively (a stand-in VoteWant API in tests).
+    const voteWant = await stubVoteWant(page);
     await page.locator("aside").getByRole("link", { name: "Feedback" }).click();
     await expectFeedbackBoard(page);
     await expect(page.getByRole("link", { name: "Open the board in your browser" })).toHaveAttribute("target", "_blank");
+    await expectNativeFeedbackWorks(page, voteWant, async () => {
+      await page.locator("aside").getByRole("link", { name: "MCP" }).click();
+      await page.locator("aside").getByRole("link", { name: "Feedback" }).click();
+    });
 
     await page.locator("aside").getByRole("link", { name: "Table viewer" }).click();
     await expect(page.getByRole("heading", { name: "Table viewer", level: 1 })).toBeVisible();

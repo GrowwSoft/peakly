@@ -1,6 +1,7 @@
 import { FeedbackView } from "@/components/feedback-view";
-import { feedbackBoardUrl } from "@/core/links";
+import { feedbackBoardId, feedbackBoardUrl } from "@/core/links";
 
 export default function FeedbackPage() {
-  return <FeedbackView boardUrl={feedbackBoardUrl(process.env.NEXT_PUBLIC_VOTEWANT_BOARD)} />;
+  const board = process.env.NEXT_PUBLIC_VOTEWANT_BOARD;
+  return <FeedbackView board={feedbackBoardId(board)} boardUrl={feedbackBoardUrl(board)} />;
 }

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ISSUER_ID, VENDOR_NUMBER } from "./fixtures/apple-data";
-import { KEY_FILE, MOCK_APPLE, STUDIO_RELEASED_AT, WRONG_ISSUER, appleRequests, expectAppLines, expectDonateTopRight, expectFeedbackBoard, expectRevenue, FEEDBACK_BOARD_URL, stubVoteWant, releaseDay, shipStudioVersion, versionRow, expectNavOrder, kpi } from "./helpers";
+import { KEY_FILE, MOCK_APPLE, STUDIO_RELEASED_AT, WRONG_ISSUER, appleRequests, expectAppLines, expectNativeFeedbackWorks, expectDonateTopRight, expectFeedbackBoard, expectRevenue, FEEDBACK_BOARD_URL, stubVoteWant, type VoteWantStub, releaseDay, shipStudioVersion, versionRow, expectNavOrder, kpi } from "./helpers";
 import { installTauriShim } from "./tauri-shim";
 
 const SCRIPT_PATH = "/Applications/Peakly.app/Contents/Resources/scripts/enable-analytics-reports.mjs";
@@ -9,11 +9,12 @@ const SCRIPT_PATH = "/Applications/Peakly.app/Contents/Resources/scripts/enable-
 test.describe.configure({ mode: "serial" });
 
 let page: Page;
+let voteWant: VoteWantStub;
 
 test.beforeAll(async ({ browser }) => {
   page = await browser.newPage();
   await page.addInitScript(installTauriShim, { mockOrigin: MOCK_APPLE, scriptPath: SCRIPT_PATH });
-  await stubVoteWant(page);
+  voteWant = await stubVoteWant(page);
   await page.goto("/");
 });
 
@@ -50,6 +51,14 @@ test.describe("Mac app (Tauri frontend in WebKit)", () => {
     await expect(page.getByText("Coming soon")).toBeVisible();
     await nav("Table viewer").click();
     await expect(page.getByRole("tab")).toHaveCount(16);
+  });
+
+  test("Feedback votes and sends feedback natively, with no sign-in", async () => {
+    await expectNativeFeedbackWorks(page, voteWant, async () => {
+      await nav("Growth insights").click();
+      await nav("Feedback").click();
+    });
+    await nav("Growth insights").click();
   });
 
   test("verifies the key with Apple before saving it to the Keychain", async () => {

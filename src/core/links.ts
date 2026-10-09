@@ -12,10 +12,19 @@ export const DONATE_URL = "https://getpeakly.app/donate";
  * data-board). Hosts can override it (NEXT_PUBLIC_VOTEWANT_BOARD / VITE_VOTEWANT_BOARD).
  */
 export const VOTEWANT_ORIGIN = "https://votewant.com";
-export const DEFAULT_FEEDBACK_BOARD = "";
+export const DEFAULT_FEEDBACK_BOARD = "getpeakly-com-a180b4a4";
 
-/** The board's public page, or null when no valid board ID is configured. */
-export function feedbackBoardUrl(board: string | undefined): string | null {
+/** Peakly's accent (--accent in globals.css), so the board's buttons and links match the app. */
+export const FEEDBACK_BOARD_ACCENT = "2a78d6";
+
+/** The configured board ID, or null when it isn't a plain VoteWant board ID. */
+export function feedbackBoardId(board: string | undefined): string | null {
   const id = (board ?? "").trim() || DEFAULT_FEEDBACK_BOARD;
-  return /^[A-Za-z0-9_-]+$/.test(id) ? `${VOTEWANT_ORIGIN}/boards/${encodeURIComponent(id)}` : null;
+  return /^[A-Za-z0-9_-]+$/.test(id) ? id : null;
+}
+
+/** The board's public page in Peakly's colors, or null when no valid board ID is configured. */
+export function feedbackBoardUrl(board: string | undefined): string | null {
+  const id = feedbackBoardId(board);
+  return id ? `${VOTEWANT_ORIGIN}/boards/${encodeURIComponent(id)}?accent=${FEEDBACK_BOARD_ACCENT}` : null;
 }

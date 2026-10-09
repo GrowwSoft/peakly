@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, type Locator, type Page } from "@playwright/test";
+import { expect, type Locator, type Page, type Route } from "@playwright/test";
 import { isoDay } from "./fixtures/apple-data";
 
 export const MOCK_APPLE = "http://127.0.0.1:4599";
@@ -84,23 +84,106 @@ export async function expectRevenue(page: Page, expected: Record<string, string>
 }
 
 /** The feedback board used by the e2e builds (NEXT_PUBLIC_VOTEWANT_BOARD / VITE_VOTEWANT_BOARD). */
-export const FEEDBACK_BOARD_URL = "https://votewant.com/boards/peakly-e2e-board";
+export const FEEDBACK_BOARD_URL = "https://votewant.com/boards/peakly-e2e-board?accent=2a78d6";
 
-/** Serve a stand-in for votewant.com, so tests never reach the real VoteWant. */
-export async function stubVoteWant(page: Page) {
-  await page.route("https://votewant.com/**", (route) =>
-    route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Board</title><h1>Stub VoteWant board</h1>" }));
+/** What Peakly sent to the stand-in VoteWant, for assertions. */
+export interface VoteWantStub {
+  readonly authorizations: string[];
+  registrations: number;
+  readonly requests: { id: string; title: string; body: string; type: string; status: string; participationVoteCount: number; downVoteCount: number }[];
+  readonly votes: Record<string, "up" | "down">;
 }
 
-/** Feedback embeds Peakly's VoteWant board and offers it in the browser. */
+/**
+ * A stand-in for VoteWant's public API (board, install voter, votes, feedback), so tests never
+ * reach the real VoteWant. It answers with CORS headers, like the real API, because Peakly
+ * calls it straight from the page.
+ */
+export async function stubVoteWant(page: Page): Promise<VoteWantStub> {
+  const state: VoteWantStub = {
+    authorizations: [],
+    registrations: 0,
+    requests: [
+      { body: "Export the table viewer as CSV.", downVoteCount: 0, id: "request_csv", participationVoteCount: 3, status: "open", title: "CSV export", type: "feature" },
+      { body: "Show Android installs too.", downVoteCount: 1, id: "request_android", participationVoteCount: 1, status: "under review", title: "Google Play support", type: "feature" },
+    ],
+    votes: {},
+  };
+  const cors = { "access-control-allow-headers": "authorization, content-type", "access-control-allow-methods": "GET, POST, OPTIONS", "access-control-allow-origin": "*" };
+  const reply = (route: Route, body: unknown, status = 200) => route.fulfill({ body: JSON.stringify(body), contentType: "application/json", headers: cors, status });
+  await page.route("https://votewant.com/**", async (route) => {
+    const request = route.request();
+    if (request.method() === "OPTIONS") return route.fulfill({ headers: cors, status: 204 });
+    const path = new URL(request.url()).pathname;
+    const authorization = request.headers().authorization;
+    if (authorization) state.authorizations.push(authorization);
+    if (path === "/api/v1/boards/peakly-e2e-board") {
+      return reply(route, { appearance: { accent: null, showHeader: false, voteMode: "up_down" }, board: { name: "Peakly", slug: "peakly-e2e-board" }, owner: { name: "Peakly" }, requests: state.requests });
+    }
+    if (path === "/api/v1/voters" && request.method() === "POST") {
+      state.registrations += 1;
+      return reply(route, { token: `vw_voter.install-${state.registrations}.secret`, voterId: `install-${state.registrations}` }, 201);
+    }
+    if (!authorization?.startsWith("Bearer vw_voter.")) return reply(route, { error: "A valid voter credential is required." }, 401);
+    if (path === "/api/v1/boards/peakly-e2e-board/votes/mine") return reply(route, { votes: state.votes });
+    const vote = /^\/api\/v1\/requests\/([^/]+)\/votes$/u.exec(path);
+    if (vote) {
+      const direction = (request.postDataJSON() as { direction: "up" | "down" }).direction;
+      const target = state.requests.find((item) => item.id === vote[1])!;
+      const previous = state.votes[target.id];
+      if (previous === "up") target.participationVoteCount -= 1;
+      if (previous === "down") target.downVoteCount -= 1;
+      if (direction === "up") target.participationVoteCount += 1; else target.downVoteCount += 1;
+      state.votes[target.id] = direction;
+      return reply(route, { direction, downVoteCount: target.downVoteCount, participationVoteCount: target.participationVoteCount });
+    }
+    if (path === "/api/v1/boards/peakly-e2e-board/feedback") {
+      const submitted = request.postDataJSON() as { title: string; body: string; type: string };
+      state.requests.push({ body: submitted.body, downVoteCount: 0, id: `request_${state.requests.length + 1}`, participationVoteCount: 0, status: "open", title: submitted.title, type: submitted.type === "issue" ? "bug" : "feature" });
+      return reply(route, { href: "/boards/peakly-e2e-board/requests/new", id: `request_${state.requests.length}`, title: submitted.title }, 201);
+    }
+    return reply(route, { error: "Not found." }, 404);
+  });
+  return state;
+}
+
+/** Feedback draws Peakly's VoteWant board natively (no frame), and offers the full board in the browser. */
 export async function expectFeedbackBoard(page: Page) {
   await expect(page.getByRole("heading", { name: "Feedback", level: 1 })).toBeVisible();
-  const frame = page.locator('iframe[title="Peakly feedback board on VoteWant"]');
-  await expect(frame).toHaveAttribute("src", FEEDBACK_BOARD_URL);
-  await expect(page.frameLocator('iframe[title="Peakly feedback board on VoteWant"]').getByRole("heading")).toHaveText("Stub VoteWant board");
+  await expect(page.getByRole("list", { name: "Requests" }).getByRole("listitem")).toHaveCount(2);
+  await expect(page.getByRole("button", { name: "Upvote CSV export" })).toContainText("3");
+  await expect(page.locator("iframe")).toHaveCount(0);
   const open = page.getByRole("link", { name: "Open the board in your browser" });
   await expect(open).toHaveAttribute("href", FEEDBACK_BOARD_URL);
-  await expect(page.getByText("never leave this")).toBeVisible();
+  await expect(page.getByText("No sign-in: this")).toBeVisible();
+}
+
+/** Votes and feedback go to VoteWant with this install's anonymous token, registered once. */
+export async function expectNativeFeedbackWorks(page: Page, stub: VoteWantStub, openFeedback: () => Promise<void>) {
+  await openFeedback();
+  const upvote = page.getByRole("button", { name: "Upvote CSV export" });
+  await upvote.click();
+  await expect(upvote).toContainText("4");
+  await expect(upvote).toHaveAttribute("aria-pressed", "true");
+  const downvote = page.getByRole("button", { name: "Downvote CSV export" });
+  await downvote.click();
+  await expect(downvote).toContainText("1");
+  await expect(upvote).toContainText("3");
+
+  await page.getByRole("button", { name: "Send feedback" }).click();
+  const form = page.getByRole("form", { name: "Send feedback" });
+  await form.getByText("Issue", { exact: true }).click();
+  await form.getByLabel("Title").fill("Crash on export");
+  await form.getByLabel("Details").fill("Exporting a long range crashes.");
+  await form.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Thanks, your feedback is on the board.");
+  await expect(page.getByRole("list", { name: "Requests" })).toContainText("Crash on export");
+
+  // Coming back reuses the same install token: one registration, every call authorized.
+  await openFeedback();
+  await expect(page.getByRole("button", { name: "Downvote CSV export" })).toHaveAttribute("aria-pressed", "true");
+  expect(stub.registrations).toBe(1);
+  expect(new Set(stub.authorizations)).toEqual(new Set(["Bearer vw_voter.install-1.secret"]));
 }
 
 export async function expectNavOrder(page: Page) {

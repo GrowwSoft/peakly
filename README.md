@@ -26,6 +26,7 @@ Open-source growth insights for App Store apps. Connect a **read-only** App Stor
 - Credentials are encrypted at rest with AES-256-GCM (`GI_ENCRYPTION_KEY`) in `GI_DATA_DIR/connections.json` (0600).
 - The App Store Connect token is created in memory per request (10-minute ES256 JWT) and sent only to `api.appstoreconnect.apple.com`. Report downloads use Apple's pre-signed URLs without credentials.
 - A key is verified against Apple before it's stored.
+- **Feedback** talks to [VoteWant](https://votewant.com)'s public API: it reads Peakly's board and, when you vote or send feedback, registers this install once for an anonymous voter ID (kept in local storage). There's no sign-in, and nothing about your apps, keys or reports is sent. The Mac app allows only `https://votewant.com` beyond Apple, and loads no frames.
 - Managing keys requires `GI_BASIC_AUTH` on any non-local host. Every Server Function re-checks access; `proxy.ts` is a convenience gate, not the security boundary.
 - The saved connection stays read-only. The Mac app can create a single ongoing Analytics Reports request only after a user previews the specific app and explicitly confirms; any separate Admin key is used in memory for that action and never saved. The web app uses the standalone local script for this one-time setup.
 
