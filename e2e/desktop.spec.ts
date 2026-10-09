@@ -38,7 +38,7 @@ test.describe("Mac app (Tauri frontend in WebKit)", () => {
     const url = page.url();
     await page.getByRole("region", { name: "Page actions" }).getByRole("link", { name: "Donate" }).click();
     await expect.poll(async () => (await shimCalls()).filter((c) => c.cmd === "plugin:opener|open_url").map((c) => (c as { url?: string }).url))
-      .toEqual(["https://getpeakly.app/donate"]);
+      .toEqual(["https://getpeakly.com/donate"]);
     expect(page.url()).toBe(url);
 
     await nav("Feedback").click();
