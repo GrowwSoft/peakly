@@ -38,7 +38,7 @@ npm install
 npm run desktop:build -- --bundles app
 ```
 
-Prefer a server? See [Production self-hosting](#production-self-hosting) for the web app.
+The Mac app is the full Peakly. The web app in this repository is for development and self-hosting, and doesn't include everything the Mac app does (see [Setup](#setup)).
 
 ## What it shows
 
