@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 5377)
+Total output lines: 339
+
 import { chmod, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -19,7 +22,7 @@ test.describe("web app", () => {
 
     // Donations go through the Peakly website (its server holds the Stripe key), in a new tab.
     const donate = page.getByRole("region", { name: "Page actions" }).getByRole("link", { name: "Donate" });
-    await expect(donate).toHaveAttribute("href", "https://getpeakly.com/donate");
+    await expect(donate).toHaveAttribute("href", "https://getpeakly.app/donate");
     await expect(donate).toHaveAttribute("target", "_blank");
     await expect(donate).toHaveAttribute("rel", /noopener/);
     await expectDonateTopRight(page);
@@ -120,89 +123,7 @@ test.describe("web app", () => {
     // The storefront funnel, split: page-view rate, page conversion, and direct downloads from search results.
     const storefront = page.getByRole("region", { name: "Low impressions · High conversion" });
     await expect(storefront).toContainText("280 product page views: 20% of impressions");
-    await expect(storefront).toContainText("56 downloads straight from search results, without a page view (33% of first-time downloads)");
-    await expect(storefront).toContainText("App Store Connect conversion rate: 15%");
-    // Trial-to-paid, matched to trials that started one trial length (1 week) earlier.
-    const trials = page.getByRole("region", { name: "About 50% of trials become paid" });
-    await expect(trials).toContainText("28 conversions in this period against 56 trials that started 7 days earlier");
-    await expect(trials).toContainText("Churn: 1 cancelled, 0 lost to billing problems");
-    await expect(page.getByText("Apple can still revise the last 3 days of store data and the last 5 days of usage data.")).toBeVisible();
-    await expect(page.getByText("Not configured (add a vendor number in Settings)")).toBeVisible();
-
-    // Without a vendor number, purchases and subscriptions still come from Analytics Reports.
-    // 28 days: 28 purchases, 1 refund, 1 partial refund ($1.00): 28 × 3.49 − 3.49 − 1.00 = $93.23.
-    await expectRevenue(page, {
-      "Estimated proceeds": "$93.23", Purchases: "28", Refunds: "1", "Free-trial starts": "56",
-      "Trials and offers converted": "28", "New paid subscriptions": "0", Renewals: "28", Churned: "1",
-    });
-    await expect(page.getByRole("heading", { name: "28 purchases in this period" })).toBeVisible();
-
-    // Saved on the server: reloading doesn't ask Apple again until it could have published.
-    const freshness = page.getByRole("status", { name: "Data freshness" });
-    await expect(freshness).toContainText("Apple's next data expected after");
-    const studioChecks = async () => (await appleRequests()).filter((r) => r.path === "/v1/apps/1001/appStoreVersions").length;
-    const checks = await studioChecks();
-    await page.reload();
-    await expect(kpi(page, "Impressions")).toContainText("1.4K");
-    expect(await studioChecks()).toBe(checks);
-    await freshness.getByRole("button", { name: "Refresh now" }).click();
-    await expect.poll(studioChecks).toBe(checks + 1);
-    await expect(kpi(page, "Impressions")).toContainText("1.4K");
-    await expect(page.getByText("Apple leaves TestFlight, App Review and sandbox purchases out of these reports.")).toBeVisible();
-
-    await page.getByRole("link", { name: "month" }).click();
-    await expect(page).toHaveURL(/grain=month/);
-    await expect(page).toHaveURL(/app=1001/);
-    await page.getByRole("combobox", { name: "Date range" }).selectOption("7");
-    await expect(page).toHaveURL(/range=7/);
-    await expect(kpi(page, "Impressions")).toContainText("350");
-    await expect(kpi(page, "First-time downloads")).toContainText("42");
-  });
-
-  test("a subscriber lost to a failed payment points to Billing Grace Period", async ({ page }) => {
-    await page.goto("/?app=1003");
-    // Echo Pad's downloads split evenly between search and web links: no source dominates.
-    const mixed = page.getByRole("region", { name: "Downloads come from several sources" });
-    await expect(mixed).toContainText("App Store search: 56 first-time downloads (50%)");
-    await expect(mixed).toContainText("Web referrer: 56 first-time downloads (50%)");
-    await expect(mixed).toContainText("Tag your own links and watch each source");
-    const billing = page.getByRole("region", { name: "Failed payments cost as many subscribers as cancellations" });
-    await expect(billing).toContainText("Churn: 0 cancelled, 1 lost to billing problems");
-    await expect(billing).toContainText("Turn on Billing Grace Period");
-  });
-
-  test("switching back to an app without analytics explains why", async ({ page }) => {
-    await page.goto("/?app=1001");
-    await page.getByRole("combobox", { name: "Choose app" }).selectOption({ label: "Calm Notes" });
-    await expect(page).toHaveURL(/app=1002/);
-    await expect(page.getByText("Store analytics unavailable")).toBeVisible();
-    await expect(kpi(page, "Impressions")).toContainText("Not reported");
-  });
-
-  test("table viewer for all apps says which app each row is from", async ({ page }) => {
-    await page.goto("/tables");
-    await expect(page.getByText("All the data Peakly can read for all apps")).toBeVisible();
-    await page.getByRole("tab", { name: /Store analytics by day and source/ }).click();
-    const panel = page.getByRole("tabpanel");
-    await expect(panel.locator("th", { hasText: "App" }).first()).toBeVisible();
-    await expect(panel.locator("tbody tr").nth(0)).toContainText("Echo Pad");
-    await expect(panel.locator("tbody")).toContainText("Studio Level");
-    await page.getByRole("tab", { name: /App Store versions/ }).click();
-    await expect(panel.locator("tbody")).toContainText("Calm Notes");
-    await expect(panel.locator("tbody")).toContainText("Studio Level");
-    // Calm Notes reports only the deprecated appStoreState; its state still shows.
-    await expect(panel.locator("tbody")).toContainText("PREPARE_FOR_SUBMISSION");
-  });
-
-  test("table viewer lists each call, colored by the key that provides it", async ({ page }) => {
-    await page.goto("/tables?app=1001");
-    await expect(page.getByText("All the data Peakly can read for Studio Level")).toBeVisible();
-
-    await page.getByRole("tab", { name: /Store analytics by day and source/ }).click();
-    const panel = page.getByRole("tabpanel");
-    await expect(panel.locator("tbody tr").first()).toContainText("App Store search");
-    // Apple restated this day in a later report without its Get taps: the newer report replaces the day.
-    const restated = panel.getByRole("row").filter({ has: page.getByRole("cell", { name: isoDay(-5), exact: true }) });
+    await expect(storefront).toContainText("56 downloads straight from search results, without a…1377 tokens truncated…cell", { name: isoDay(-5), exact: true }) });
     await expect(restated.getByRole("cell")).toHaveText([isoDay(-5), "App Store search", "50", "40", "10", "0", "6", "4", "0"]);
     const usual = panel.getByRole("row").filter({ has: page.getByRole("cell", { name: isoDay(-6), exact: true }) });
     await expect(usual.getByRole("cell").nth(5)).toHaveText("6");

@@ -20,7 +20,7 @@ This records the checks for publishing Peakly's source. It does not approve a ho
 - Both full npm audits still report the development-only `braces` denial-of-service advisory through the Next ESLint toolchain (five dependency entries for one advisory). Do not run lint on untrusted repositories with access to deployment secrets. Recheck upstream fixes before release tooling changes; npm's proposed major downgrade is not applied.
 - Rust dependency advisories and a signed native build are separate native-release checks. An offline Cargo metadata attempt could not complete because a platform dependency was not cached.
 - VoteWant's shared rate limiting and its deployed identity/persistence settings need a separate release review. Peakly's mock tests do not establish that every production write is enabled or durable.
-- The canonical website domain is `getpeakly.com`; set the production `SITE_URL` to `https://getpeakly.com` before enabling live donations.
+- The canonical website domain is `getpeakly.app`; set the production `SITE_URL` to `https://getpeakly.app` before enabling live donations.
 - Enable GitHub private vulnerability reporting when publishing, review the owner-visible repository metadata, and decide whether issues/discussions should be enabled.
 - Earlier commits contain machine-local author/committer metadata. New preparation commits use the maintainer's GitHub noreply address. Existing shared history has not been rewritten; review its metadata before changing visibility if that information should remain private.
 
