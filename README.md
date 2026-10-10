@@ -8,6 +8,38 @@ Growth insights for App Store apps. Connect App Store Connect to see discovery, 
 
 > Working title. MVP scope: App Store Connect only (Analytics Reports + Sales reports). Superwall and other sources come later through the same provider pattern.
 
+## Build the Mac app
+
+Peakly is free and open source. To use it on your Mac, build it from this repository. The first build takes a few minutes.
+
+```bash
+# 1. Tools: Xcode Command Line Tools and Rust (plus Node.js from https://nodejs.org)
+xcode-select --install
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+. "$HOME/.cargo/env"   # or open a new Terminal window
+
+# 2. Get Peakly and build the app
+git clone https://github.com/GrowwSoft/peakly.git
+cd peakly
+npm install
+npm run desktop:build -- --bundles app
+
+# 3. Open it (drag Peakly.app into Applications to keep it)
+open src-tauri/target/release/bundle/macos/Peakly.app
+```
+
+Peakly opens with sample data. Connect App Store Connect in **Settings** (see [Connecting](#connecting-2-inputs-per-apple-account)). Builds without a signing certificate ask you to click **Unlock** once per launch, so Peakly can read its key from the Keychain (see [Mac app](#mac-app-tauri)).
+
+To update later, from the `peakly` folder:
+
+```bash
+git pull
+npm install
+npm run desktop:build -- --bundles app
+```
+
+The Mac app is the full Peakly. The web app in this repository is for development and self-hosting, and doesn't include everything the Mac app does (see [Setup](#setup)).
+
 ## What it shows
 
 - **KPIs**: impressions, page conversion, first-time downloads, product page views, each against the previous period.
@@ -83,7 +115,7 @@ The same screens ship as a Mac desktop app, built like AppLustre: a Vite fronten
 - The Mac app provides the one-time activation flow in Settings, so users don't need Node.js or Terminal.
 
 ```bash
-# Install the stable Rust toolchain and Xcode Command Line Tools first.
+# Needs Xcode Command Line Tools and Rust; see "Build the Mac app" above.
 npm run desktop:dev        # run the app with hot reload
 npm run desktop:build      # build Peakly.app and a .dmg (unsigned until a signing identity is configured)
 npm run desktop:build:dev-signed   # debug build signed with your "Apple Development" certificate
