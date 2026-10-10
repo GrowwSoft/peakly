@@ -19,7 +19,7 @@ test.describe("web app", () => {
 
     // Donations go through the Peakly website (its server holds the Stripe key), in a new tab.
     const donate = page.getByRole("region", { name: "Page actions" }).getByRole("link", { name: "Donate" });
-    await expect(donate).toHaveAttribute("href", "https://getpeakly.com/donate");
+    await expect(donate).toHaveAttribute("href", "https://getpeakly.app/donate");
     await expect(donate).toHaveAttribute("target", "_blank");
     await expect(donate).toHaveAttribute("rel", /noopener/);
     await expectDonateTopRight(page);

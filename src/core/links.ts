@@ -3,7 +3,7 @@
  * The app only links there, so no payment secret is ever in this open-source code,
  * and copies run by other people still send donations to the project.
  */
-export const DONATE_URL = "https://getpeakly.com/donate";
+export const DONATE_URL = "https://getpeakly.app/donate";
 
 /** Schedule a one-to-one with Peakly's creator. */
 export const CALENDLY_URL = "https://calendly.com/alexander-landaverde01/one-to-one";

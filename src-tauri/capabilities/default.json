@@ -15,7 +15,7 @@
     },
     {
       "identifier": "opener:allow-open-url",
-      "allow": [{ "url": "https://getpeakly.com/*" }, { "url": "https://votewant.com/boards/*" }]
+      "allow": [{ "url": "https://getpeakly.app/*" }, { "url": "https://votewant.com/boards/*" }]
     }
   ]
 }
