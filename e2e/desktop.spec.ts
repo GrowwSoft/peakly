@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 4949)
-Total output lines: 341
-
 import { expect, test, type Page } from "@playwright/test";
 import { ISSUER_ID, VENDOR_NUMBER } from "./fixtures/apple-data";
 import { CALENDLY_URL } from "../src/core/links";
@@ -140,7 +137,71 @@ test.describe("Mac app (Tauri frontend in WebKit)", () => {
     const vendor = page.getByRole("textbox", { name: "Add a vendor number to include sales" });
     await vendor.fill("12345678");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText("Invalid vendo…949 tokens truncated…lls();
+    await expect(page.getByText("Invalid vendor number specified")).toBeVisible();
+
+    const pageErrors: string[] = [];
+    const recordPageError = (error: Error) => pageErrors.push(error.message);
+    page.on("pageerror", recordPageError);
+    await vendor.fill(VENDOR_NUMBER);
+    await page.evaluate(() => {
+      (window as unknown as { __peaklyE2E: { failNextVendorWrite: (message: string) => void } })
+        .__peaklyE2E.failNextVendorWrite("Simulated Keychain write failure.");
+    });
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByRole("status")).toContainText("Simulated Keychain write failure.");
+    await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Test connection" })).toBeVisible();
+    await expect(vendor).toBeVisible();
+    await expect(vendor).toHaveValue(VENDOR_NUMBER);
+    expect(pageErrors).toEqual([]);
+
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByText("•••456")).toBeVisible();
+    page.off("pageerror", recordPageError);
+
+    await nav("Growth insights").click();
+    // Studio Level, last 7 days: a purchase a day, and the cancellation on day −7.
+    await expect(page.getByRole("heading", { name: "7 paid sales in this period" })).toBeVisible();
+    await expectRevenue(page, { "Estimated proceeds": "$24.43", Purchases: "7", Refunds: "0", "Free-trial starts": "14", Churned: "1" });
+    await nav("Table viewer").click();
+    await page.getByRole("tab", { name: /Sales by day/ }).click();
+    await expect(page.getByRole("tabpanel").locator('th[data-provider="vendor"]')).toHaveCount(8);
+    // Report tabs load from Apple through the native side when opened.
+    await page.getByRole("tab", { name: /^Sessions/ }).click();
+    await expect(page.getByRole("tabpanel").locator("th", { hasText: /^Total Session Duration$/ })).toBeVisible();
+    await page.getByRole("tab", { name: /^Subscribers/ }).click();
+    await expect(page.getByRole("tabpanel").locator("tbody")).toContainText("Pro Monthly");
+  });
+
+  test("only reads from Apple, through the native HTTP plugin", async () => {
+    const httpCalls = (await shimCalls()).filter((c) => c.cmd === "plugin:http|fetch");
+    expect(httpCalls.length).toBeGreaterThan(0);
+    expect(httpCalls.filter((c) => c.method !== "GET")).toEqual([]);
+    expect((await appleRequests()).filter((r) => r.method !== "GET")).toEqual([]);
+  });
+
+  test("revisiting an app reuses what it already loaded instead of asking Apple again", async () => {
+    // The calls that build a dashboard (the version list and sales reports; the readiness list is separate and reloads with the Table viewer).
+    const studioCalls = async () => (await appleRequests()).filter((r) => /appStoreVersions|salesReports/.test(r.path) && !r.path.includes("/apps/1002/")).length;
+    const picker = page.getByRole("combobox", { name: "Choose app" });
+    await nav("Growth insights").click();
+    await expect(kpi(page, "Impressions")).toContainText("350");
+    const before = await studioCalls();
+
+    // Switching away and back, changing screens and coming back: all served from the cache.
+    await picker.selectOption({ label: "Calm Notes" });
+    await expect(page.getByText("Store analytics unavailable")).toBeVisible();
+    const afterCalm = await studioCalls();
+    await picker.selectOption({ label: "Studio Level" });
+    await expect(kpi(page, "Impressions")).toContainText("350");
+    await nav("Table viewer").click();
+    await nav("Growth insights").click();
+    await expect(kpi(page, "Impressions")).toContainText("350");
+    expect(await studioCalls()).toBe(afterCalm);
+    expect(afterCalm).toBeGreaterThanOrEqual(before);
+
+    // Retry is the way to ask Apple again.
+    const beforeRefresh = await studioCalls();
     await page.getByRole("combobox", { name: "Date range" }).selectOption("28");
     await expect(kpi(page, "Impressions")).toContainText("1.4K");
     await page.getByRole("combobox", { name: "Date range" }).selectOption("7");
