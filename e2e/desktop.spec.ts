@@ -344,7 +344,7 @@ test.describe("Mac app (Tauri frontend in WebKit)", () => {
     });
     await page.reload();
     await expect(page.getByRole("combobox", { name: "Choose app" })).toHaveValue("all");
-    await expect(page.getByText("Some apps are still waiting for newer reports", { exact: true })).toBeVisible();
+    await expect(page.getByText("App reports cover different periods", { exact: true })).toBeVisible();
     // The timeline follows Echo Pad's newer data, despite Studio Level's saved older endpoint.
     const through = await page.evaluate(() => {
       const e2e = (window as unknown as { __peaklyE2E: { cacheGet: (k: string) => string } }).__peaklyE2E;
@@ -357,11 +357,11 @@ test.describe("Mac app (Tauri frontend in WebKit)", () => {
     await expect(chart.locator('path[data-app="Studio Level"]')).toHaveAttribute("d", /^M/);
     await expect(page.getByText("Try next", { exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Refresh now" }).click();
-    await expect(page.getByText("Some apps are still waiting for newer reports", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("App reports cover different periods", { exact: true })).toHaveCount(0);
     await expect(kpi(page, "Impressions")).toContainText("2.2K");
     await page.reload();
     await expect(kpi(page, "Impressions")).toContainText("2.2K");
-    await expect(page.getByText("Some apps are still waiting for newer reports", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("App reports cover different periods", { exact: true })).toHaveCount(0);
   });
 
   test("newer engagement survives a stalled download report, refresh, and relaunch", async () => {

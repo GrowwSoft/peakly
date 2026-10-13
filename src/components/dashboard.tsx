@@ -135,13 +135,14 @@ export function Dashboard({
       {dataset.coverage.downloadsThrough !== undefined && (dataset.coverage.downloadsThrough ?? "") < (dataset.coverage.engagementThrough ?? "") && (
         <Notice tone="info" title="Engagement and download reports cover different dates">
           Impressions and page views are available through {shortDate(dataset.coverage.engagementThrough!)}.
-          {" "}Download reports {dataset.coverage.downloadsThrough ? `contain data through ${shortDate(dataset.coverage.downloadsThrough)}` : "have no dated rows yet"}.
+          {" "}Download reports {dataset.coverage.downloadsThrough ? `contain data through ${shortDate(dataset.coverage.downloadsThrough)}` : dataset.app.id === ALL_APPS ? "are not available for every reporting app yet" : "have no dated rows yet"}.
           {" "}Newer engagement stays visible. Download totals and conversion for incomplete periods are unknown, not zero.
         </Notice>
       )}
       {partial && (
-        <Notice tone="info" title="Some apps are still waiting for newer reports">
-          Newest store data: {shortDate(latest)}. {dataset.coverage.delayedApps?.map((a) => `${a.name}: ${a.through ? `through ${shortDate(a.through)}` : "not yet published"}`).join("; ")}.
+        <Notice tone="info" title="App reports cover different periods">
+          Newest store data: {shortDate(latest)}.
+          {Boolean(dataset.coverage.delayedApps?.length) && <> {dataset.coverage.delayedApps!.map((a) => `${a.name}: ${a.through ? `through ${shortDate(a.through)}` : "not yet published"}`).join("; ")}.</>}
           {" "}Each app’s line shows its available data. Combined totals and sources include only days all reporting apps cover; missing days stay gaps. Period comparisons and combined recommendations wait for complete data. Select an app to see its own latest insights.
         </Notice>
       )}
