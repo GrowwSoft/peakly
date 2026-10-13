@@ -72,6 +72,15 @@ describe("analytics normalization", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]!.counts).toBe(42);
   });
+
+  it("preserves newer impressions when download rows end four days earlier", () => {
+    const rows = compactRows(ENGAGEMENT_REPORT, [{ Date: "2026-10-12", Event: "Impression", "Source Type": "App Store search", Counts: "42", "Unique Counts": "30" }]);
+    const metrics = toDailyMetrics(rows, new Set(["2026-10-12"]), new Set(["2026-10-08"]));
+    expect(metrics.find((m) => m.date === "2026-10-12" && m.source === "search"))
+      .toMatchObject({ impressions: 42, uniqueImpressions: 30, firstDownloads: null, pageDownloads: null, redownloads: null });
+    expect(metrics.find((m) => m.date === "2026-10-08" && m.source === "search"))
+      .toMatchObject({ impressions: null, pageViews: null, firstDownloads: 0 });
+  });
 });
 
 describe("credentials", () => {

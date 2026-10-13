@@ -72,14 +72,16 @@ const SOURCES: SourceType[] = ["search", "browse", "app_referrer", "web_referrer
 
 /**
  * Turn deduplicated rows into daily per-source metrics. Apple omits zero rows, so a
- * date covered by BOTH published reports starts at 0; dates either report doesn't
- * cover produce nothing (unknown), never a fabricated zero.
+ * published dates start at 0 for that report's measures only. An unpublished
+ * download report must not hide known impressions or invent zero downloads.
  */
-export function toDailyMetrics(rows: CompactRow[], coveredDates: Set<string>): DailySourceMetrics[] {
+export function toDailyMetrics(rows: CompactRow[], engagementDates: Set<string>, downloadDates = engagementDates): DailySourceMetrics[] {
   const byKey = new Map<string, DailySourceMetrics>();
-  for (const date of coveredDates) {
+  for (const date of new Set([...engagementDates, ...downloadDates])) {
     for (const source of SOURCES) {
-      byKey.set(`${date}|${source}`, { date, source, impressions: 0, uniqueImpressions: 0, pageViews: 0, getTaps: 0, firstDownloads: 0, pageDownloads: 0, redownloads: 0 });
+      const engagement = engagementDates.has(date) ? 0 : null;
+      const downloads = downloadDates.has(date) ? 0 : null;
+      byKey.set(`${date}|${source}`, { date, source, impressions: engagement, uniqueImpressions: engagement, pageViews: engagement, getTaps: engagement, firstDownloads: downloads, pageDownloads: downloads, redownloads: downloads });
     }
   }
   for (const row of rows) {

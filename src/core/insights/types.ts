@@ -115,6 +115,12 @@ export interface ReportCoverage {
   /** First and last day Apple returned store analytics for. Days outside are unknown. */
   analyticsFrom?: string | null;
   analyticsThrough: string | null;
+  engagementThrough?: string | null;
+  downloadsThrough?: string | null;
+  /** Portfolio totals are known only inside the shared reporting window. */
+  analyticsCompleteFrom?: string | null;
+  analyticsCompleteThrough?: string | null;
+  delayedApps?: { name: string; through: string | null }[];
   sales: "observed" | "error" | "unavailable";
   salesDetail?: string;
   salesPendingDates: string[];

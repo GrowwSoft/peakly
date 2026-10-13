@@ -21,6 +21,15 @@ describe("wilsonInterval", () => {
 });
 
 describe("totals", () => {
+  it("does not turn partially reported downloads into a conversion verdict or a weekly zero", () => {
+    const rows = [day("2026-10-08", "search", { impressions: 10, uniqueImpressions: 10, firstDownloads: 2 }),
+      day("2026-10-12", "search", { impressions: 40, uniqueImpressions: 30, firstDownloads: null, redownloads: null, pageDownloads: null })];
+    const w = windows("2026-10-12", 7).current;
+    expect(totals(rows, w)).toMatchObject({ impressions: 50, firstDownloads: null, pageDownloads: null });
+    expect(kpis(rows, w, windows("2026-10-12", 7).previous).find((k) => k.key === "conversion")?.value).toBeNull();
+    expect(series(rows, w, "week")[0]).toMatchObject({ impressions: 50, firstDownloads: null, conversion: null });
+    expect(diagnose(rows, [], w, observed).filter((insight) => insight.id === "too-early" || insight.id === "search-led")).toEqual([]);
+  });
   it("keeps unknown as null instead of zero", () => {
     const w = windows("2026-10-03", 7).current;
     expect(totals([], w).impressions).toBeNull();

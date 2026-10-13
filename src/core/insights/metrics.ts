@@ -10,7 +10,7 @@ const METRIC_KEYS: MetricKey[] = ["impressions", "uniqueImpressions", "pageViews
  * and may de-duplicate devices across a whole period, while daily reports only give daily uniques.
  */
 export function appStoreConversion(t: { firstDownloads: number | null; redownloads: number | null; uniqueImpressions: number | null }): number | null {
-  if (t.firstDownloads === null && t.redownloads === null) return null;
+  if (t.firstDownloads === null || t.redownloads === null) return null;
   return ratio((t.firstDownloads ?? 0) + (t.redownloads ?? 0), t.uniqueImpressions);
 }
 
@@ -45,17 +45,19 @@ export function inWindow(date: string, w: Window): boolean {
   return date >= w.start && date <= w.end;
 }
 
-/** Sum each metric; a metric with no reported rows at all stays null (unknown), not 0. */
+/** Sum each metric only when its reported rows are complete. Unknown measures cannot become a misleading partial total. */
 export function totals(rows: DailySourceMetrics[], w: Window, source?: SourceType): Totals {
   const out = Object.fromEntries(METRIC_KEYS.map((k) => [k, null])) as Totals;
+  const unknown = new Set<MetricKey>();
   for (const row of rows) {
     if (!inWindow(row.date, w) || (source && row.source !== source)) continue;
     for (const key of METRIC_KEYS) {
       const value = row[key];
-      if (value === null) continue;
+      if (value === null) { unknown.add(key); continue; }
       out[key] = (out[key] ?? 0) + value;
     }
   }
+  for (const key of unknown) out[key] = null;
   return out;
 }
 
@@ -102,6 +104,7 @@ export type Grain = "day" | "week" | "month";
 export function series(rows: DailySourceMetrics[], w: Window, grain: Grain): SeriesPoint[] {
   const dates = datesBetween(w.start, w.end);
   const buckets = new Map<string, SeriesPoint>();
+  const unknown = new Map<string, Set<"impressions" | "uniqueImpressions" | "firstDownloads" | "redownloads">>();
   const bucketOf = (date: string) => {
     if (grain === "day") return date;
     if (grain === "month") return `${date.slice(0, 7)}-01`;
@@ -117,9 +120,17 @@ export function series(rows: DailySourceMetrics[], w: Window, grain: Grain): Ser
     const point = buckets.get(bucketOf(row.date))!;
     for (const key of ["impressions", "uniqueImpressions", "firstDownloads", "redownloads"] as const) {
       if (row[key] !== null) point[key] = (point[key] ?? 0) + row[key]!;
+      else {
+        const missing = unknown.get(bucketOf(row.date)) ?? new Set();
+        missing.add(key);
+        unknown.set(bucketOf(row.date), missing);
+      }
     }
   }
-  for (const point of buckets.values()) point.conversion = appStoreConversion(point);
+  for (const [key, point] of buckets) {
+    for (const metric of unknown.get(key) ?? []) point[metric] = null;
+    point.conversion = appStoreConversion(point);
+  }
   return [...buckets.values()];
 }
 

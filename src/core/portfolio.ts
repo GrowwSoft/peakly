@@ -11,11 +11,14 @@ export { ALL_APPS, ALL_APPS_SUMMARY } from "./all-apps";
  * conversion come from the combined counts (a weighted figure), never an average of
  * each app's rate. Store analytics only cover days every reporting app has published:
  * a day one app hasn't published yet is unknown for the whole account, not zero.
+ * Keep newer per-app rows so a delayed app cannot freeze the whole timeline.
  */
 export function combineDatasets(datasets: AppDataset[]): AppDataset {
   const observed = datasets.filter((d) => d.coverage.analytics === "observed");
-  const from = observed.map((d) => d.coverage.analyticsFrom).filter((d): d is string => Boolean(d)).sort().at(-1) ?? null;
-  const through = observed.map((d) => d.coverage.analyticsThrough).filter((d): d is string => Boolean(d)).sort()[0] ?? null;
+  const starts = observed.map((d) => d.coverage.analyticsFrom).filter((d): d is string => Boolean(d)).sort();
+  const ends = observed.map((d) => d.coverage.analyticsThrough).filter((d): d is string => Boolean(d)).sort();
+  const from = starts[0] ?? null;
+  const through = ends.at(-1) ?? null;
 
   const statusOrder: ReportCoverage["analytics"][] = ["observed", "pending", "not_enabled", "error", "unavailable"];
   const analytics = statusOrder.find((s) => datasets.some((d) => d.coverage.analytics === s)) ?? "unavailable";
@@ -26,6 +29,12 @@ export function combineDatasets(datasets: AppDataset[]): AppDataset {
     analytics,
     analyticsFrom: from,
     analyticsThrough: through,
+    engagementThrough: observed.map((d) => d.coverage.engagementThrough ?? d.coverage.analyticsThrough).filter((d): d is string => Boolean(d)).sort().at(-1) ?? null,
+    downloadsThrough: observed.some((d) => d.coverage.downloadsThrough === null) ? null : observed.map((d) => d.coverage.downloadsThrough ?? d.coverage.analyticsThrough).filter((d): d is string => Boolean(d)).sort()[0] ?? null,
+    analyticsCompleteFrom: starts.at(-1) ?? null,
+    analyticsCompleteThrough: ends[0] ?? null,
+    delayedApps: observed.filter((d) => d.coverage.analyticsThrough !== through)
+      .map((d) => ({ name: d.app.name, through: d.coverage.analyticsThrough })),
     analyticsDetail: analytics === "observed" ? undefined : datasets.find((d) => d.coverage.analytics === analytics)?.coverage.analyticsDetail,
     sales,
     salesDetail: datasets.find((d) => d.coverage.sales === sales)?.coverage.salesDetail,
@@ -38,9 +47,7 @@ export function combineDatasets(datasets: AppDataset[]): AppDataset {
   return {
     app: ALL_APPS_SUMMARY,
     generatedAt: datasets.map((d) => d.generatedAt).sort()[0] ?? new Date(0).toISOString(),
-    metrics: observed.flatMap((d) => d.metrics
-      .filter((m) => (!from || m.date >= from) && (!through || m.date <= through))
-      .map((m) => ({ ...m, app: d.app.name }))),
+    metrics: observed.flatMap((d) => d.metrics.map((m) => ({ ...m, app: d.app.name }))),
     sales: combineSales(datasets.map((d) => d.sales)),
     revenue: combineRevenue(datasets.map((d) => d.revenue ?? [])),
     // Per-source rows simply add up across apps.

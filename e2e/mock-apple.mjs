@@ -25,6 +25,7 @@ const ADMIN_KEY_ID = "E2EADMKEY1";
 const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkqP9fDwAEzwJIBxXZKwAAAABJRU5ErkJggg==", "base64");
 const requests = [];
 const createdAnalyticsRequests = new Set();
+let laggingDownloads = false;
 
 // Studio Level's versions: 2.2 is in review until a test ships it with POST /__release.
 const STUDIO_RELEASED_AT = `${isoDay(-10)}T17:00:00Z`;
@@ -202,7 +203,7 @@ async function apple(req, res, url) {
     if (!REPORTING[id]) return json(res, 200, page([])); // Newly enabled reports are not published immediately.
     if (m[1] === "rep-installperf") return json(res, 200, page([])); // not published for these apps
     return json(res, 200, page([
-      ...ANALYTICS_DAYS.map((d) => resource("analyticsReportInstances", `${m[1]}~${id}~${d}`, { granularity: "DAILY", processingDate: d })),
+      ...ANALYTICS_DAYS.filter((d) => !(laggingDownloads && id === "1001" && m[1] === "rep-dl") || d <= isoDay(-6)).map((d) => resource("analyticsReportInstances", `${m[1]}~${id}~${d}`, { granularity: "DAILY", processingDate: d })),
       resource("analyticsReportInstances", `${m[1]}~${id}~weekly`, { granularity: "WEEKLY", processingDate: ANALYTICS_DAYS.at(-1) }),
       // A later instance that restates RESTATED_DAY without its Tap row: it must replace that day, not merge.
       ...(m[1] === "rep-eng" && id === "1001" ? [resource("analyticsReportInstances", `${m[1]}~${id}~restated`, { granularity: "DAILY", processingDate: isoDay(-1) })] : []),
@@ -248,6 +249,10 @@ createServer((req, res) => {
   if (url.pathname === "/health") { res.end("ok"); return; }
   if (url.pathname === "/__requests") return json(res, 200, requests);
   // Test control: ship Studio Level 2.2 now, or put it back in review.
+  if (url.pathname === "/__lagging-downloads" && req.method === "POST") {
+    laggingDownloads = !url.searchParams.has("reset");
+    return json(res, 200, { laggingDownloads });
+  }
   if (url.pathname === "/__release" && req.method === "POST") {
     studioShipped = url.searchParams.get("reset") ? null : { releasedAt: new Date().toISOString().replace(/\.\d+Z$/, "Z") };
     return json(res, 200, { studioShipped });
