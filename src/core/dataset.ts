@@ -122,18 +122,18 @@ async function analytics(platform: Platform, client: AscClient, appId: string, s
   const wanted = [ENGAGEMENT_REPORT, DOWNLOADS_REPORT];
   const covered: Record<string, Set<string>> = {};
   const instances: { processingDate: string; rows: CompactRow[] }[] = [];
-  let reportsPublished = true;
+  let reportsPublished = false;
 
   for (const name of wanted) {
     covered[name] = new Set();
     const report = reports.find((r) => r.attributes.name === name);
-    if (!report) { reportsPublished = false; continue; }
+    if (!report) continue;
     const all = await client.all<AscResource<InstanceAttributes>>(`/v1/analyticsReports/${report.id}/instances?limit=200`, 20);
     const daily = all
       .filter((i) => i.attributes.granularity === "DAILY")
       .map((i) => ({ id: i.id, date: (i.attributes.processingDate ?? i.attributes.reportingDate ?? "").slice(0, 10) }))
       .filter((i) => i.date >= since);
-    if (!all.some((i) => i.attributes.granularity === "DAILY")) reportsPublished = false;
+    if (all.some((i) => i.attributes.granularity === "DAILY")) reportsPublished = true;
     const loaded = await pool(daily, 4, async (i) => ({ processingDate: i.date, rows: await instanceRows(platform, client, name, i.id) }));
     const rowDates: string[] = [];
     for (const instance of loaded) {
@@ -146,15 +146,17 @@ async function analytics(platform: Platform, client: AscClient, appId: string, s
     if (rowDates.length) for (const d of datesBetween(rowDates[0]!, rowDates.at(-1)!)) covered[name]!.add(d);
   }
   if (!reportsPublished) return { status: "waiting" as const };
-  const both = new Set([...covered[ENGAGEMENT_REPORT]!].filter((d) => covered[DOWNLOADS_REPORT]!.has(d) && d >= since));
-  const metrics = toDailyMetrics(dedupeNewest(instances), both);
-  const sorted = [...both].sort();
+  const metrics = toDailyMetrics(dedupeNewest(instances), covered[ENGAGEMENT_REPORT]!, covered[DOWNLOADS_REPORT]!);
+  const sorted = [...new Set([...covered[ENGAGEMENT_REPORT]!, ...covered[DOWNLOADS_REPORT]!])].filter((d) => d >= since).sort();
   const revenue = await revenueReports(platform, client, reports, since);
   const usage = await dailyReport(platform, client, reports, INSTALLS_REPORT, since);
   const outcomes = revenue || usage
     ? toDailyOutcomes([...(revenue?.rows ?? []), ...(usage?.rows ?? [])], usage?.dates ?? new Set(), revenue?.dates ?? new Set())
     : null;
-  return { status: "observed" as const, metrics, from: sorted[0] ?? null, through: sorted.at(-1) ?? null, revenue: revenue?.days ?? null, outcomes };
+  return { status: "observed" as const, metrics, from: sorted[0] ?? null, through: sorted.at(-1) ?? null,
+    engagementThrough: [...covered[ENGAGEMENT_REPORT]!].sort().at(-1) ?? null,
+    downloadsThrough: [...covered[DOWNLOADS_REPORT]!].sort().at(-1) ?? null,
+    revenue: revenue?.days ?? null, outcomes };
 }
 
 /**
@@ -222,7 +224,7 @@ export interface StoredDataset {
   nextCheckAt: number;
 }
 
-const datasetKey = (auth: AscAuth, app: AppSummary, days: number) => `dataset-v3/${keyPart(auth.vendorNumber || "none")}/${keyPart(app.id)}-${days}.json`;
+const datasetKey = (auth: AscAuth, app: AppSummary, days: number) => `dataset-v4/${keyPart(auth.vendorNumber || "none")}/${keyPart(app.id)}-${days}.json`;
 
 /** The last finished dataset saved on this computer, if any. Reads only the local cache: no network, no key. */
 export async function storedDataset(platform: Platform, auth: AscAuth, app: AppSummary, days: number): Promise<StoredDataset | null> {
@@ -278,6 +280,8 @@ async function buildFreshDataset(platform: Platform, auth: AscAuth, app: AppSumm
       coverage.analytics = "observed";
       coverage.analyticsFrom = analyticsResult.value.from;
       coverage.analyticsThrough = analyticsResult.value.through;
+      coverage.engagementThrough = analyticsResult.value.engagementThrough;
+      coverage.downloadsThrough = analyticsResult.value.downloadsThrough;
       metrics = analyticsResult.value.metrics;
       revenue = analyticsResult.value.revenue ?? [];
       outcomes = analyticsResult.value.outcomes ?? [];

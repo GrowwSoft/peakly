@@ -305,14 +305,14 @@ test.describe("Mac app (Tauri frontend in WebKit)", () => {
     await page.reload();
     await picker.selectOption({ label: "Studio Level" });
     await expect(kpi(page, "Impressions")).toContainText("1.4K");
-    await expect(freshness).toContainText("Updated");
+    await expect(freshness).toContainText("Checked Apple");
     await expect(freshness).toContainText("Apple's next data expected after");
     expect(await studioChecks()).toBe(before);
 
     // Once Apple could have published, opening the app shows the saved data and checks in the background.
     await page.evaluate(() => {
       const e2e = (window as unknown as { __peaklyE2E: { cacheGet: (k: string) => string | undefined; cacheSet: (k: string, v: string) => void } }).__peaklyE2E;
-      const key = "dataset-v3/88123456/1001-28.json";
+      const key = "dataset-v4/88123456/1001-28.json";
       e2e.cacheSet(key, JSON.stringify({ ...JSON.parse(e2e.cacheGet(key)!), nextCheckAt: 0 }));
     });
     await picker.selectOption({ label: "Calm Notes" });
@@ -327,6 +327,63 @@ test.describe("Mac app (Tauri frontend in WebKit)", () => {
     await expect.poll(studioChecks).toBe(before + 2);
     await expect(kpi(page, "Impressions")).toContainText("1.4K");
     await page.evaluate(() => sessionStorage.removeItem("__peaklyE2ESigned"));
+  });
+
+  test("a lagging app cannot freeze the portfolio after restart, and Refresh now replaces saved reports", async () => {
+    await page.evaluate(() => {
+      sessionStorage.setItem("__peaklyE2ESigned", "1");
+      const e2e = (window as unknown as { __peaklyE2E: { cacheGet: (k: string) => string; cacheSet: (k: string, v: string) => void } }).__peaklyE2E;
+      const key = "dataset-v4/88123456/1001-28.json";
+      const saved = JSON.parse(e2e.cacheGet(key));
+      const latest = saved.dataset.coverage.analyticsThrough;
+      const older = new Date(Date.parse(latest) - 4 * 86_400_000).toISOString().slice(0, 10);
+      saved.dataset.coverage.analyticsThrough = older;
+      saved.dataset.metrics = saved.dataset.metrics.filter((row: { date: string }) => row.date <= older);
+      saved.nextCheckAt = Date.now() + 86_400_000;
+      e2e.cacheSet(key, JSON.stringify(saved));
+    });
+    await page.reload();
+    await expect(page.getByRole("combobox", { name: "Choose app" })).toHaveValue("all");
+    await expect(page.getByText("App reports cover different periods", { exact: true })).toBeVisible();
+    // The timeline follows Echo Pad's newer data, despite Studio Level's saved older endpoint.
+    const through = await page.evaluate(() => {
+      const e2e = (window as unknown as { __peaklyE2E: { cacheGet: (k: string) => string } }).__peaklyE2E;
+      return JSON.parse(e2e.cacheGet("dataset-v4/88123456/1003-28.json")).dataset.coverage.analyticsThrough as string;
+    });
+    const monthDay = new Date(`${through}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+    await expect(page.getByText(`Newest store data: ${monthDay}.`, { exact: false })).toBeVisible();
+    const chart = page.getByRole("img", { name: "Impressions and conversion rate" });
+    await expect(chart.locator('path[data-app="Echo Pad"]')).toHaveAttribute("d", /^M/);
+    await expect(chart.locator('path[data-app="Studio Level"]')).toHaveAttribute("d", /^M/);
+    await expect(page.getByText("Try next", { exact: true })).toHaveCount(0);
+    await page.getByRole("button", { name: "Refresh now" }).click();
+    await expect(page.getByText("App reports cover different periods", { exact: true })).toHaveCount(0);
+    await expect(kpi(page, "Impressions")).toContainText("2.2K");
+    await page.reload();
+    await expect(kpi(page, "Impressions")).toContainText("2.2K");
+    await expect(page.getByText("App reports cover different periods", { exact: true })).toHaveCount(0);
+  });
+
+  test("newer engagement survives a stalled download report, refresh, and relaunch", async () => {
+    await fetch(`${MOCK_APPLE}/__lagging-downloads`, { method: "POST" });
+    try {
+      await page.getByRole("combobox", { name: "Choose app" }).selectOption({ label: "Studio Level" });
+      await page.getByRole("button", { name: "Refresh now" }).click();
+      await expect(page.getByText("Engagement and download reports cover different dates", { exact: true })).toBeVisible();
+      await expect(kpi(page, "Impressions")).toContainText("1.4K");
+      await expect(kpi(page, "First-time downloads")).toContainText("Not reported");
+      await expect(kpi(page, "Conversion rate")).toContainText("Not reported");
+      await expect(page.getByText("Search drives most downloads", { exact: true })).toHaveCount(0);
+      await page.reload();
+      await page.getByRole("combobox", { name: "Choose app" }).selectOption({ label: "Studio Level" });
+      await expect(kpi(page, "Impressions")).toContainText("1.4K");
+      await expect(page.getByText("Engagement and download reports cover different dates", { exact: true })).toBeVisible();
+    } finally {
+      await fetch(`${MOCK_APPLE}/__lagging-downloads?reset=1`, { method: "POST" });
+    }
+    await page.getByRole("button", { name: "Refresh now" }).click();
+    await expect(kpi(page, "First-time downloads")).toContainText("168");
+    await expect(page.getByText("Engagement and download reports cover different dates", { exact: true })).toHaveCount(0);
   });
 
   test("removing the key clears the Keychain and returns to sample data", async () => {

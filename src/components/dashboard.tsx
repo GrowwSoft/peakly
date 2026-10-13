@@ -67,7 +67,7 @@ function FreshnessLine({ freshness, refreshControl }: { freshness: Freshness; re
   const { now } = freshness;
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-2 text-sm text-ink-3" role="status" aria-label="Data freshness">
-      <span>Updated {clock(freshness.checkedAt, now)}</span>
+      <span>Checked Apple {clock(freshness.checkedAt, now)}</span>
       <span aria-hidden>·</span>
       <span className={freshness.error ? "text-bad" : undefined}>{freshness.checking ? "Checking Apple for new data…" : freshness.error ? `Couldn't reach Apple: ${freshness.error}` : freshness.nextCheckAt > now ? `Apple's next data expected after ${clock(freshness.nextCheckAt, now)}` : "New data may be available"}</span>
       {refreshControl && !freshness.checking && <><span aria-hidden>·</span>{refreshControl}</>}
@@ -91,10 +91,16 @@ export function Dashboard({
 }) {
   const latest = dataset.coverage.analyticsThrough ?? isoDate(Date.parse(dataset.generatedAt) - 3 * 86_400_000);
   const { current, previous } = windows(latest, range);
-  const cards = kpis(dataset.metrics, current, previous);
-  const pageViews = totals(dataset.metrics, current).pageViews ?? 0;
-  const points = series(dataset.metrics, current, grain);
-  const insights = diagnose(dataset.metrics, dataset.sales, current, dataset.coverage, dataset.revenue, dataset.outcomes);
+  const completeFrom = dataset.coverage.analyticsCompleteFrom;
+  const completeThrough = dataset.coverage.analyticsCompleteThrough;
+  const aggregateRows = dataset.metrics.filter((m) => (!completeFrom || m.date >= completeFrom) && (!completeThrough || m.date <= completeThrough));
+  const partial = Boolean((completeFrom && completeFrom > current.start) || (completeThrough && completeThrough < current.end));
+  const partialComparison = partial || Boolean(completeFrom && completeFrom > previous.start);
+  const cards = kpis(aggregateRows, current, previous).map((card) => partialComparison ? { ...card, previous: null, change: null } : card);
+  const pageViews = totals(aggregateRows, current).pageViews ?? 0;
+  const points = series(aggregateRows, current, grain);
+  // Incomplete portfolio periods cannot support a combined growth verdict.
+  const insights = partial ? [] : diagnose(aggregateRows, dataset.sales, current, dataset.coverage, dataset.revenue, dataset.outcomes);
   // All apps: one line per app, colored by the app's place in the account (never by rank), so colors stay put.
   const appLines: AppLine[] = dataset.app.id === ALL_APPS && dataset.members
     ? appLinesFor(dataset, current, grain)
@@ -126,12 +132,27 @@ export function Dashboard({
         </Notice>
       )}
       {dataset.coverage.sales === "error" && <Notice tone="warn" title="Sales reports unavailable">{dataset.coverage.salesDetail}</Notice>}
+      {dataset.coverage.downloadsThrough !== undefined && (dataset.coverage.downloadsThrough ?? "") < (dataset.coverage.engagementThrough ?? "") && (
+        <Notice tone="info" title="Engagement and download reports cover different dates">
+          Impressions and page views are available through {shortDate(dataset.coverage.engagementThrough!)}.
+          {" "}Download reports {dataset.coverage.downloadsThrough ? `contain data through ${shortDate(dataset.coverage.downloadsThrough)}` : dataset.app.id === ALL_APPS ? "are not available for every reporting app yet" : "have no dated rows yet"}.
+          {" "}Newer engagement stays visible. Download totals and conversion for incomplete periods are unknown, not zero.
+        </Notice>
+      )}
+      {partial && (
+        <Notice tone="info" title="App reports cover different periods">
+          Newest store data: {shortDate(latest)}.
+          {Boolean(dataset.coverage.delayedApps?.length) && <> {dataset.coverage.delayedApps!.map((a) => `${a.name}: ${a.through ? `through ${shortDate(a.through)}` : "not yet published"}`).join("; ")}.</>}
+          {" "}Each app’s line shows its available data. Combined totals and sources include only days all reporting apps cover; missing days stay gaps. Period comparisons and combined recommendations wait for complete data. Select an app to see its own latest insights.
+        </Notice>
+      )}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         {cards.map((kpi) => <KpiCard key={kpi.key} kpi={kpi} thin={kpi.key === "conversion" && pageViews < INSIGHT_POLICY.minPageViews} />)}
       </div>
 
       <section className="mt-5 rounded-2xl border border-line bg-card p-6">
+        {partial && <p className="mb-3 text-sm text-ink-3">Combined totals cover shared reporting days only. Newer per-app data remains visible below.</p>}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold text-ink">Impressions and conversion rate{appLines.length > 0 && <span className="font-normal text-ink-3"> · all apps averaged</span>}</h2>
@@ -176,7 +197,7 @@ export function Dashboard({
       {dataset.coverage.revenue === "observed" && dataset.revenue && <RevenueSection revenue={dataset.revenue} window={current} />}
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[2fr_1fr] [&>*]:min-w-0">
-        <SourceTable rows={dataset.metrics} window={current} />
+        <SourceTable rows={aggregateRows} window={current} />
         <section className="rounded-2xl border border-line bg-card p-6 text-sm">
           <h2 className="text-lg font-semibold text-ink">Data coverage</h2>
           <dl className="mt-4 space-y-3 text-ink-2">

@@ -35,7 +35,7 @@ export function SourceTable({ rows, window }: { rows: DailySourceMetrics[]; wind
                   <td className="py-2.5 text-right">{cell(t.pageViews)}</td>
                   <td className="py-2.5 text-right">{cell(t.firstDownloads)}</td>
                   <td className="py-2.5 text-right">{cell(t.pageDownloads)}</td>
-                  <td className="py-2.5 text-right">{t.pageViews ? percent((t.pageDownloads ?? 0) / t.pageViews) : "—"}</td>
+                  <td className="py-2.5 text-right">{t.pageViews && t.pageDownloads !== null ? percent(t.pageDownloads / t.pageViews) : "—"}</td>
                 </tr>
               ))}
             </tbody>
