@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { wilsonInterval } from "@/core/insights/stats";
-import { kpis, series, totals, windows } from "@/core/insights/metrics";
+import { knownTotal, kpis, series, totals, windows } from "@/core/insights/metrics";
 import { classify, diagnose } from "@/core/insights/diagnose";
 import type { DailySales, DailySourceMetrics, ReportCoverage, SourceType } from "@/core/insights/types";
 
@@ -26,7 +26,10 @@ describe("totals", () => {
       day("2026-10-12", "search", { impressions: 40, uniqueImpressions: 30, firstDownloads: null, redownloads: null, pageDownloads: null })];
     const w = windows("2026-10-12", 7).current;
     expect(totals(rows, w)).toMatchObject({ impressions: 50, firstDownloads: null, pageDownloads: null });
-    expect(kpis(rows, w, windows("2026-10-12", 7).previous).find((k) => k.key === "conversion")?.value).toBeNull();
+    const metrics = kpis(rows, w, windows("2026-10-12", 7).previous);
+    expect(metrics.find((k) => k.key === "conversion")?.value).toBeNull();
+    expect(metrics.find((k) => k.key === "firstDownloads")).toMatchObject({ value: 2, partial: true, change: null });
+    expect(knownTotal(rows, w, "firstDownloads")).toMatchObject({ value: 2, partial: true });
     expect(series(rows, w, "week")[0]).toMatchObject({ impressions: 50, firstDownloads: null, conversion: null });
     expect(diagnose(rows, [], w, observed).filter((insight) => insight.id === "too-early" || insight.id === "search-led")).toEqual([]);
   });

@@ -26,7 +26,9 @@ export function KpiCard({ kpi, thin }: { kpi: Kpi; thin: boolean }) {
         </div>
       </div>
       <p className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-        {kpi.change === null ? (
+        {kpi.partial ? (
+          <span className="rounded-full bg-card-muted px-2 py-0.5 text-xs text-ink-3 ring-1 ring-line">Partial data</span>
+        ) : kpi.change === null ? (
           <span className="text-ink-3">{kpi.value === null ? "Not reported" : "No comparable previous period"}</span>
         ) : (
           <>

@@ -136,7 +136,7 @@ export function Dashboard({
         <Notice tone="info" title="Engagement and download reports cover different dates">
           Impressions and page views are available through {shortDate(dataset.coverage.engagementThrough!)}.
           {" "}Download reports {dataset.coverage.downloadsThrough ? `contain data through ${shortDate(dataset.coverage.downloadsThrough)}` : dataset.app.id === ALL_APPS ? "are not available for every reporting app yet" : "have no dated rows yet"}.
-          {" "}Newer engagement stays visible. Download totals and conversion for incomplete periods are unknown, not zero.
+          {" "}Newer engagement stays visible. Count cards add the download values Apple reported and mark them partial; dates without download rows remain unknown. Conversion and source recommendations wait for complete download coverage.
         </Notice>
       )}
       {partial && (
