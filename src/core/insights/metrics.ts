@@ -69,6 +69,21 @@ export interface Kpi {
   /** Relative change for counts; percentage-point change for the conversion rate. */
   change: number | null;
   changeKind: "relative" | "points";
+  /** The displayed count covers only dates with a published value. */
+  partial?: boolean;
+}
+
+/** Sum every reported value while exposing missing dates to count displays. */
+export function knownTotal(rows: DailySourceMetrics[], w: Window, key: MetricKey, source?: SourceType): { value: number | null; partial: boolean } {
+  let value = 0;
+  let hasValue = false;
+  let partial = false;
+  for (const row of rows) {
+    if (!inWindow(row.date, w) || (source && row.source !== source)) continue;
+    if (row[key] === null) partial = true;
+    else { value += row[key]!; hasValue = true; }
+  }
+  return { value: hasValue ? value : null, partial };
 }
 
 export function kpis(rows: DailySourceMetrics[], current: Window, previous: Window): Kpi[] {
@@ -76,9 +91,16 @@ export function kpis(rows: DailySourceMetrics[], current: Window, previous: Wind
   const before = totals(rows, previous);
   const conv = appStoreConversion(now);
   const convBefore = appStoreConversion(before);
-  const count = (key: "impressions" | "pageViews" | "firstDownloads", label: string): Kpi => ({
-    key, label, value: now[key], previous: before[key], change: relativeChange(now[key], before[key]), changeKind: "relative",
-  });
+  const count = (key: "impressions" | "pageViews" | "firstDownloads", label: string): Kpi => {
+    const currentCount = knownTotal(rows, current, key);
+    const previousCount = knownTotal(rows, previous, key);
+    const comparable = !currentCount.partial && !previousCount.partial;
+    return {
+      key, label, value: currentCount.value, previous: comparable ? previousCount.value : null,
+      change: comparable ? relativeChange(currentCount.value, previousCount.value) : null,
+      changeKind: "relative", partial: currentCount.partial,
+    };
+  };
   return [
     count("impressions", "Impressions"),
     { key: "conversion", label: "Conversion rate", value: conv, previous: convBefore,

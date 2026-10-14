@@ -371,7 +371,8 @@ test.describe("Mac app (Tauri frontend in WebKit)", () => {
       await page.getByRole("button", { name: "Refresh now" }).click();
       await expect(page.getByText("Engagement and download reports cover different dates", { exact: true })).toBeVisible();
       await expect(kpi(page, "Impressions")).toContainText("1.4K");
-      await expect(kpi(page, "First-time downloads")).toContainText("Not reported");
+      await expect(kpi(page, "First-time downloads")).toContainText("Partial data");
+      await expect(kpi(page, "First-time downloads").locator("p").first()).not.toContainText("—");
       await expect(kpi(page, "Conversion rate")).toContainText("Not reported");
       await expect(page.getByText("Search drives most downloads", { exact: true })).toHaveCount(0);
       await page.reload();

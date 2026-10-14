@@ -49,7 +49,7 @@ The Mac app is the full Peakly. The web app in this repository is for developmen
 
 ## Principles
 
-- **Unknown is not zero.** Days Apple hasn't published are gaps, not zeros. Missing reports are named.
+- **Unknown is not zero.** Days Apple hasn't published are gaps, not zeros. Count cards include known values and mark incomplete periods as partial; conversion verdicts use only complete inputs.
 - **Small samples get "too early to tell."** Conversion is judged with a 95% Wilson interval. It's "high" or "low" only when the whole interval clears the target (`INSIGHT_POLICY` in `src/lib/insights/diagnose.ts`).
 - **Events, not people.** Apple's Counts are events. Direct search downloads skip the product page, so total downloads are never divided by page views.
 - **No paid-traffic advice without paid evidence.** Exposure advice holds paid campaigns until purchases are verified in Apple's sales reports.
@@ -111,7 +111,7 @@ The same screens ship as a Mac desktop app, built like AppLustre: a Vite fronten
 - The key lives in the **macOS Keychain**. Requests are signed in Rust, so the private key never goes back to the page after it's saved.
 - Published reports are saved in the app's cache folder and never downloaded twice.
 - **Apple publishes new data about once a day**, so Peakly keeps each finished dashboard and opens it instantly. It asks Apple again only after the next daily publish (Apple says the previous day's sales reports are generally out by 8 am Pacific), every 3 hours while Apple is behind, or when you click **Refresh now**. The dashboard shows when it was updated and when new data is expected.
-- **Reports can cover different dates.** New impressions and page views stay visible even when download reports have no newer rows. Incomplete download totals and conversion stay unknown, never zero; Peakly shows the coverage dates separately. In the all-apps view, each app keeps its latest line while combined totals use shared reporting days.
+- **Reports can cover different dates.** New impressions and page views stay visible even when download reports have no newer rows. Download cards and source totals include known values and mark incomplete coverage as partial; missing dates remain unknown. Conversion and source recommendations wait for complete inputs. In the all-apps view, each app keeps its latest line while combined totals use shared reporting days.
 - **Keychain access:** a build signed by a developer team reads its own Keychain item silently, so it unlocks at launch. Unsigned builds look like a new app to macOS after every rebuild, so they never read the Keychain until you click **Unlock**; that one unlock covers every screen until you quit. The key's non-secret details (Key ID, vendor number, saved date) are kept in `connection.json` in the app's data folder, so the lock screen can show them without the Keychain.
 - The Mac app provides the one-time activation flow in Settings, so users don't need Node.js or Terminal.
 
